@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express, { type Express } from "express";
 import fs from "fs";
 import path from "path";

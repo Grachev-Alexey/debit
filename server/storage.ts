@@ -68,8 +68,9 @@ export class MySQLStorage implements IStorage {
       const [result] = await pool.execute<ResultSetHeader>(
         `INSERT INTO client_sales_tracker 
         (sale_id, amocrm_lead_id, yclients_client_id, yclients_company_id, client_phone, subscription_title, purchase_date, 
-         total_cost, is_installment, total_payments, payments_made_count, next_payment_date, next_payment_amount, is_fully_paid, status, overdue_days)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+         total_cost, is_installment, payment_schedule, payment_history, total_payments, payments_made_count, next_payment_date, next_payment_amount, 
+         is_fully_paid, status, comments, overdue_days)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
         [
           sale.sale_id,
           sale.amocrm_lead_id,
@@ -80,12 +81,15 @@ export class MySQLStorage implements IStorage {
           sale.purchase_date,
           sale.total_cost,
           sale.is_installment ? 1 : 0,
+          sale.payment_schedule ? JSON.stringify(sale.payment_schedule) : null,
+          sale.payment_history ? JSON.stringify(sale.payment_history) : null,
           sale.total_payments || null,
           sale.payments_made_count || null,
           sale.next_payment_date || null,
           sale.next_payment_amount || null,
           sale.is_fully_paid ? 1 : 0,
           sale.status,
+          sale.comments || null,
         ]
       );
 
@@ -145,6 +149,14 @@ export class MySQLStorage implements IStorage {
         updates.push('is_installment = ?');
         params.push(sale.is_installment ? 1 : 0);
       }
+      if (sale.payment_schedule !== undefined) {
+        updates.push('payment_schedule = ?');
+        params.push(sale.payment_schedule ? JSON.stringify(sale.payment_schedule) : null);
+      }
+      if (sale.payment_history !== undefined) {
+        updates.push('payment_history = ?');
+        params.push(sale.payment_history ? JSON.stringify(sale.payment_history) : null);
+      }
       if (sale.total_payments !== undefined) {
         updates.push('total_payments = ?');
         params.push(sale.total_payments || null);
@@ -169,6 +181,10 @@ export class MySQLStorage implements IStorage {
         updates.push('status = ?');
         params.push(sale.status);
       }
+      if (sale.comments !== undefined) {
+        updates.push('comments = ?');
+        params.push(sale.comments || null);
+      }
 
       if (updates.length === 0) {
         // Нет полей для обновления
@@ -191,6 +207,25 @@ export class MySQLStorage implements IStorage {
 
   // Вспомогательная функция для преобразования строки БД в объект ClientSale
   private mapRowToClientSale(row: RowDataPacket): ClientSale {
+    let paymentSchedule = null;
+    let paymentHistory = null;
+
+    try {
+      paymentSchedule = row.payment_schedule ? 
+        (typeof row.payment_schedule === 'string' ? JSON.parse(row.payment_schedule) : row.payment_schedule) : null;
+    } catch (error) {
+      console.error('Ошибка парсинга payment_schedule:', error);
+      paymentSchedule = null;
+    }
+
+    try {
+      paymentHistory = row.payment_history ? 
+        (typeof row.payment_history === 'string' ? JSON.parse(row.payment_history) : row.payment_history) : null;
+    } catch (error) {
+      console.error('Ошибка парсинга payment_history:', error);
+      paymentHistory = null;
+    }
+
     return {
       id: row.id,
       sale_id: row.sale_id,
@@ -202,7 +237,8 @@ export class MySQLStorage implements IStorage {
       purchase_date: new Date(row.purchase_date),
       total_cost: parseFloat(row.total_cost),
       is_installment: Boolean(row.is_installment),
-      payment_schedule: row.payment_schedule,
+      payment_schedule: paymentSchedule,
+      payment_history: paymentHistory,
       total_payments: row.total_payments || null,
       payments_made_count: row.payments_made_count || null,
       next_payment_date: row.next_payment_date ? new Date(row.next_payment_date) : null,
@@ -212,6 +248,7 @@ export class MySQLStorage implements IStorage {
       status: row.status,
       is_underpaid: Boolean(row.is_underpaid),
       underpayment_amount: parseFloat(row.underpayment_amount || '0'),
+      comments: row.comments || null,
       last_checked_at: row.last_checked_at ? new Date(row.last_checked_at) : null,
       created_at: row.created_at ? new Date(row.created_at) : null,
       updated_at: row.updated_at ? new Date(row.updated_at) : null,

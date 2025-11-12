@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useDebouncedValue } from "@/hooks/use-debounce";
-import { Plus, Search, Pencil, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Search, Pencil, ChevronLeft, ChevronRight, Calendar, MessageSquare } from "lucide-react";
 import type { ClientSale, SalesFilters, InsertClientSale } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,7 +23,15 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SaleFormDialog } from "@/components/SaleFormDialog";
+import { PaymentScheduleView } from "@/components/PaymentScheduleView";
 import { formatCurrency, formatDate, getStatusLabel, getStatusVariant } from "@/lib/formatters";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -35,9 +43,11 @@ export default function HomePage() {
   });
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSale, setEditingSale] = useState<ClientSale | null>(null);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [selectedSale, setSelectedSale] = useState<ClientSale | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
-  const { toast } = useToast();
+  const { toast} = useToast();
 
   // Debounce search to reduce API calls
   const debouncedSearch = useDebouncedValue(filters.search, 300);
@@ -95,19 +105,26 @@ export default function HomePage() {
   });
 
   // Мутация для обновления абонемента
-  const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: InsertClientSale }) => {
+  const updateMutation = useMutation<ClientSale, Error, { id: number; data: Partial<InsertClientSale> }>({
+    mutationFn: async ({ id, data }: { id: number; data: Partial<InsertClientSale> }) => {
       return await apiRequest("PATCH", `/api/sales/${id}`, data);
     },
-    onSuccess: () => {
+    onSuccess: (updatedSale) => {
       queryClient.invalidateQueries({ predicate: (query) => 
         Boolean(query.queryKey[0]?.toString().startsWith("/api/sales"))
       });
-      setDialogOpen(false);
-      toast({
-        title: "Успешно",
-        description: "Абонемент успешно обновлён",
-      });
+      
+      if (selectedSale && updatedSale && updatedSale.id === selectedSale.id) {
+        setSelectedSale(updatedSale);
+      }
+      
+      if (dialogOpen) {
+        setDialogOpen(false);
+        toast({
+          title: "Успешно",
+          description: "Абонемент успешно обновлён",
+        });
+      }
     },
     onError: (error: any) => {
       toast({
@@ -134,6 +151,26 @@ export default function HomePage() {
     } else {
       createMutation.mutate(data);
     }
+  };
+
+  const handleViewDetails = (sale: ClientSale) => {
+    setSelectedSale(sale);
+    setDetailsDialogOpen(true);
+  };
+
+  const handlePaymentComplete = (paymentIndex: number, paidDate: string, paidAmount: number) => {
+    if (!selectedSale) return;
+
+    const existingHistory = selectedSale.payment_history || [];
+    const newHistory = [
+      ...existingHistory,
+      { paymentIndex, paidDate, paidAmount }
+    ];
+
+    updateMutation.mutate({
+      id: selectedSale.id,
+      data: { payment_history: newHistory }
+    });
   };
 
   return (
@@ -198,6 +235,7 @@ export default function HomePage() {
                   <TableHead className="font-semibold text-center">Прогресс</TableHead>
                   <TableHead className="font-semibold">След. платёж</TableHead>
                   <TableHead className="font-semibold text-center">Просрочка</TableHead>
+                  <TableHead className="font-semibold">Комментарии</TableHead>
                   <TableHead className="font-semibold text-right">Действия</TableHead>
                 </TableRow>
               </TableHeader>
@@ -213,6 +251,7 @@ export default function HomePage() {
                       <TableCell><Skeleton className="h-5 w-24 ml-auto" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-12 mx-auto" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                       <TableCell><Skeleton className="h-9 w-9 ml-auto" /></TableCell>
                     </TableRow>
                   ))
@@ -280,21 +319,43 @@ export default function HomePage() {
                       >
                         {sale.overdue_days > 0 ? `${sale.overdue_days} дн.` : '—'}
                       </TableCell>
+                      <TableCell className="max-w-xs" data-testid={`text-comments-${sale.id}`}>
+                        {sale.comments ? (
+                          <div className="line-clamp-2 text-sm text-muted-foreground">
+                            {sale.comments}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEditClick(sale)}
-                          data-testid={`button-edit-${sale.id}`}
-                        >
-                          <Pencil className="w-5 h-5" />
-                        </Button>
+                        <div className="flex gap-1 justify-end">
+                          {sale.payment_schedule && sale.payment_schedule.length > 0 && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleViewDetails(sale)}
+                              data-testid={`button-view-details-${sale.id}`}
+                              title="График платежей"
+                            >
+                              <Calendar className="w-5 h-5" />
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEditClick(sale)}
+                            data-testid={`button-edit-${sale.id}`}
+                          >
+                            <Pencil className="w-5 h-5" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
+                    <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
                       <div className="flex flex-col items-center gap-2">
                         <p className="text-lg font-medium">Абонементы не найдены</p>
                         <p className="text-sm">Попробуйте изменить фильтры или добавьте новый абонемент</p>
@@ -370,6 +431,52 @@ export default function HomePage() {
         editingSale={editingSale}
         isLoading={createMutation.isPending || updateMutation.isPending}
       />
+
+      {/* Payment Schedule Details Dialog */}
+      <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl">Детали абонемента</DialogTitle>
+          </DialogHeader>
+          {selectedSale && (
+            <Tabs defaultValue="schedule" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="schedule">
+                  <Calendar className="w-4 h-4 mr-2" />
+                  График платежей
+                </TabsTrigger>
+                <TabsTrigger value="comments">
+                  <MessageSquare className="w-4 h-4 mr-2" />
+                  Комментарии
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="schedule" className="mt-4">
+                <PaymentScheduleView
+                  sale={selectedSale}
+                  onPaymentComplete={handlePaymentComplete}
+                />
+              </TabsContent>
+              <TabsContent value="comments" className="mt-4">
+                <div className="space-y-4">
+                  <div className="p-4 border rounded-lg bg-muted/50">
+                    <h3 className="font-semibold mb-2">Комментарии менеджера</h3>
+                    {selectedSale.comments ? (
+                      <p className="text-sm whitespace-pre-wrap">{selectedSale.comments}</p>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Комментарии отсутствуют</p>
+                    )}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    <p><strong>Клиент:</strong> {selectedSale.client_phone}</p>
+                    <p><strong>Абонемент:</strong> {selectedSale.subscription_title}</p>
+                    <p><strong>Сумма:</strong> {formatCurrency(selectedSale.total_cost)}</p>
+                  </div>
+                </div>
+              </TabsContent>
+            </Tabs>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

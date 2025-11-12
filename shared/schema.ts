@@ -6,6 +6,19 @@ import { z } from "zod";
 
 export type SaleStatus = "active" | "overdue" | "underpaid" | "paid_off" | "completed";
 
+export interface PaymentScheduleEntry {
+  date: string;
+  amount: number;
+  description: string;
+}
+
+export interface PaymentHistoryEntry {
+  paymentIndex: number;
+  paidDate: string;
+  paidAmount: number;
+  note?: string;
+}
+
 export interface ClientSale {
   id: number;
   sale_id: number;
@@ -17,7 +30,8 @@ export interface ClientSale {
   purchase_date: Date;
   total_cost: number;
   is_installment: boolean;
-  payment_schedule: any | null;
+  payment_schedule: PaymentScheduleEntry[] | null;
+  payment_history: PaymentHistoryEntry[] | null;
   total_payments: number | null;
   payments_made_count: number | null;
   next_payment_date: Date | null;
@@ -27,10 +41,24 @@ export interface ClientSale {
   status: SaleStatus;
   is_underpaid: boolean;
   underpayment_amount: number;
+  comments: string | null;
   last_checked_at: Date | null;
   created_at: Date | null;
   updated_at: Date | null;
 }
+
+export const paymentScheduleEntrySchema = z.object({
+  date: z.string(),
+  amount: z.number().nonnegative({ message: "Сумма платежа не может быть отрицательной" }),
+  description: z.string(),
+});
+
+export const paymentHistoryEntrySchema = z.object({
+  paymentIndex: z.number().int().nonnegative({ message: "Индекс платежа должен быть неотрицательным" }),
+  paidDate: z.string(),
+  paidAmount: z.number().nonnegative({ message: "Сумма оплаты не может быть отрицательной" }),
+  note: z.string().optional(),
+});
 
 // Схема для вставки новой продажи
 export const insertClientSaleSchema = z.object({
@@ -49,6 +77,8 @@ export const insertClientSaleSchema = z.object({
   purchase_date: z.string().min(1, { message: "Дата покупки обязательна" }),
   total_cost: z.coerce.number().positive({ message: "Общая стоимость должна быть положительной" }),
   is_installment: z.boolean().default(false),
+  payment_schedule: z.array(paymentScheduleEntrySchema).nullable().optional(),
+  payment_history: z.array(paymentHistoryEntrySchema).nullable().optional(),
   total_payments: z.preprocess(
     (val) => val === null || val === "" || val === undefined ? null : Number(val),
     z.number().int().nullable().optional()
@@ -66,6 +96,7 @@ export const insertClientSaleSchema = z.object({
   status: z.enum(["active", "overdue", "underpaid", "paid_off", "completed"], { 
     message: "Статус должен быть: active, overdue, underpaid, paid_off или completed" 
   }).default("active"),
+  comments: z.string().nullable().optional(),
 });
 
 // Схема для обновления продажи (id добавляется отдельно)

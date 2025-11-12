@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import { formatDateForInput } from "@/lib/formatters";
 
 interface SaleFormDialogProps {
@@ -62,6 +63,7 @@ export function SaleFormDialog({
       next_payment_amount: null,
       is_fully_paid: false,
       status: "active",
+      comments: null,
     },
   });
 
@@ -83,6 +85,7 @@ export function SaleFormDialog({
         next_payment_amount: editingSale.next_payment_amount,
         is_fully_paid: editingSale.is_fully_paid,
         status: editingSale.status,
+        comments: editingSale.comments || "",
       });
     } else {
       form.reset({
@@ -101,6 +104,7 @@ export function SaleFormDialog({
         next_payment_amount: null,
         is_fully_paid: false,
         status: "active",
+        comments: null,
       });
     }
   }, [editingSale, form]);
@@ -402,6 +406,27 @@ export function SaleFormDialog({
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="comments"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Комментарии менеджера</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Добавьте комментарии к абонементу..."
+                      className="resize-none"
+                      rows={4}
+                      data-testid="textarea-comments"
+                      {...field}
+                      value={field.value || ""}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <DialogFooter className="gap-2">
               <Button
