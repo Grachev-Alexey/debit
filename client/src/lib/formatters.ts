@@ -27,7 +27,7 @@ export function getStatusLabel(status: string): string {
     overdue: 'Просрочен',
     underpaid: 'Недоплата',
     paid_off: 'Погашен',
-    completed: 'Завершен'
+    completed: 'Полностью оплачен'
   };
   return labels[status] || status;
 }

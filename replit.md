@@ -1,8 +1,8 @@
-# Client Sales Tracker Admin Panel
+# Дебиторка (Контроль абонементов клиентов)
 
 ## Overview
 
-This is a full-stack web application for managing client sales and payment tracking. The system is designed as an admin panel ("Трекер продаж клиентов") that allows tracking sales records, monitoring payment statuses, handling installment plans, and managing overdue payments. The application features a clean, professional interface following Material Design principles with Linear-inspired aesthetics.
+This is a full-stack web application for managing client subscription payments and tracking. The system is designed as an admin panel ("Дебиторка") that allows tracking subscription records, monitoring payment statuses, handling installment plans, and managing overdue payments for client subscriptions. The application features a clean, professional interface following Material Design principles with Linear-inspired aesthetics.
 
 ## User Preferences
 

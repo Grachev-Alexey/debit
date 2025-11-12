@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Search, Pencil } from "lucide-react";
+import { useDebouncedValue } from "@/hooks/use-debounce";
+import { Plus, Search, Pencil, ChevronLeft, ChevronRight } from "lucide-react";
 import type { ClientSale, SalesFilters, InsertClientSale } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,22 +35,42 @@ export default function HomePage() {
   });
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSale, setEditingSale] = useState<ClientSale | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
   const { toast } = useToast();
+
+  // Debounce search to reduce API calls
+  const debouncedSearch = useDebouncedValue(filters.search, 300);
 
   // Построение query string для API
   const buildQueryKey = () => {
     const params = new URLSearchParams();
-    if (filters.search) params.set("search", filters.search);
+    if (debouncedSearch) params.set("search", debouncedSearch);
     if (filters.status && filters.status !== "all") params.set("status", filters.status);
     const queryString = params.toString();
     return queryString ? `/api/sales?${queryString}` : "/api/sales";
   };
 
-  const { data: sales, isLoading } = useQuery<ClientSale[]>({
-    queryKey: [buildQueryKey(), filters],
+  const { data: allSales, isLoading } = useQuery<ClientSale[]>({
+    queryKey: [buildQueryKey(), debouncedSearch, filters.status],
   });
 
-  // Мутация для создания новой продажи
+  // Client-side pagination
+  const paginatedSales = useMemo(() => {
+    if (!allSales) return [];
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return allSales.slice(startIndex, endIndex);
+  }, [allSales, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil((allSales?.length || 0) / itemsPerPage);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, filters.status]);
+
+  // Мутация для создания нового абонемента
   const createMutation = useMutation({
     mutationFn: async (data: InsertClientSale) => {
       return await apiRequest("POST", "/api/sales", data);
@@ -61,19 +82,19 @@ export default function HomePage() {
       setDialogOpen(false);
       toast({
         title: "Успешно",
-        description: "Продажа успешно создана",
+        description: "Абонемент успешно создан",
       });
     },
     onError: (error: any) => {
       toast({
         title: "Ошибка",
-        description: error.message || "Не удалось создать продажу",
+        description: error.message || "Не удалось создать абонемент",
         variant: "destructive",
       });
     },
   });
 
-  // Мутация для обновления продажи
+  // Мутация для обновления абонемента
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: InsertClientSale }) => {
       return await apiRequest("PATCH", `/api/sales/${id}`, data);
@@ -85,13 +106,13 @@ export default function HomePage() {
       setDialogOpen(false);
       toast({
         title: "Успешно",
-        description: "Продажа успешно обновлена",
+        description: "Абонемент успешно обновлён",
       });
     },
     onError: (error: any) => {
       toast({
         title: "Ошибка",
-        description: error.message || "Не удалось обновить продажу",
+        description: error.message || "Не удалось обновить абонемент",
         variant: "destructive",
       });
     },
@@ -121,11 +142,11 @@ export default function HomePage() {
       <header className="border-b bg-card">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 h-16 flex items-center justify-between">
           <h1 className="text-3xl font-bold tracking-tight" data-testid="text-page-title">
-            Трекер продаж клиентов
+            Дебиторка
           </h1>
           <Button onClick={handleAddClick} data-testid="button-add-sale">
             <Plus className="w-5 h-5 mr-2" />
-            Добавить продажу
+            Добавить абонемент
           </Button>
         </div>
       </header>
@@ -138,7 +159,7 @@ export default function HomePage() {
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder="Поиск по телефону или ID продажи"
+                placeholder="Поиск по телефону"
                 className="pl-10"
                 value={filters.search}
                 onChange={(e) => setFilters({ ...filters, search: e.target.value })}
@@ -158,7 +179,7 @@ export default function HomePage() {
                 <SelectItem value="overdue">Просрочен</SelectItem>
                 <SelectItem value="underpaid">Недоплата</SelectItem>
                 <SelectItem value="paid_off">Погашен</SelectItem>
-                <SelectItem value="completed">Завершен</SelectItem>
+                <SelectItem value="completed">Полностью оплачен</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -195,14 +216,16 @@ export default function HomePage() {
                       <TableCell><Skeleton className="h-9 w-9 ml-auto" /></TableCell>
                     </TableRow>
                   ))
-                ) : sales && sales.length > 0 ? (
-                  sales.map((sale) => (
+                ) : paginatedSales && paginatedSales.length > 0 ? (
+                  paginatedSales.map((sale) => (
                     <TableRow key={sale.id} className="hover-elevate" data-testid={`row-sale-${sale.id}`}>
                       <TableCell data-testid={`text-phone-${sale.id}`}>
                         {sale.client_phone}
                       </TableCell>
-                      <TableCell className="max-w-xs truncate" data-testid={`text-title-${sale.id}`}>
-                        {sale.subscription_title || '—'}
+                      <TableCell className="max-w-md" data-testid={`text-title-${sale.id}`}>
+                        <div className="line-clamp-2">
+                          {sale.subscription_title || '—'}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Badge
@@ -218,22 +241,36 @@ export default function HomePage() {
                       </TableCell>
                       <TableCell className="text-center" data-testid={`text-progress-${sale.id}`}>
                         {sale.is_installment && sale.total_payments ? (
-                          <span className="text-sm">
-                            {sale.payments_made_count || 0} / {sale.total_payments}
-                          </span>
+                          <div className="flex flex-col gap-1 items-center">
+                            <div className="w-full bg-muted rounded-full h-2 max-w-[100px]">
+                              <div 
+                                className="bg-primary h-2 rounded-full transition-all" 
+                                style={{ 
+                                  width: `${Math.min(100, ((sale.payments_made_count || 0) / sale.total_payments) * 100)}%` 
+                                }}
+                              />
+                            </div>
+                            <span className="text-xs text-muted-foreground">
+                              {sale.payments_made_count || 0} из {sale.total_payments}
+                            </span>
+                          </div>
                         ) : (
                           <span className="text-muted-foreground">—</span>
                         )}
                       </TableCell>
                       <TableCell data-testid={`text-next-payment-${sale.id}`}>
-                        <div className="flex flex-col gap-0.5">
-                          <span className="text-sm">{formatDate(sale.next_payment_date)}</span>
-                          {sale.next_payment_amount && (
-                            <span className="text-xs text-muted-foreground">
-                              {formatCurrency(sale.next_payment_amount)}
-                            </span>
-                          )}
-                        </div>
+                        {sale.is_fully_paid || sale.status === 'completed' ? (
+                          <span className="text-muted-foreground">—</span>
+                        ) : (
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-sm">{formatDate(sale.next_payment_date)}</span>
+                            {sale.next_payment_amount && (
+                              <span className="text-xs text-muted-foreground">
+                                {formatCurrency(sale.next_payment_amount)}
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell
                         className={`text-center tabular-nums ${
@@ -259,8 +296,8 @@ export default function HomePage() {
                   <TableRow>
                     <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
                       <div className="flex flex-col items-center gap-2">
-                        <p className="text-lg font-medium">Продажи не найдены</p>
-                        <p className="text-sm">Попробуйте изменить фильтры или добавьте новую продажу</p>
+                        <p className="text-lg font-medium">Абонементы не найдены</p>
+                        <p className="text-sm">Попробуйте изменить фильтры или добавьте новый абонемент</p>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -269,6 +306,60 @@ export default function HomePage() {
             </Table>
           </div>
         </Card>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-4">
+            <div className="text-sm text-muted-foreground">
+              Показано {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, allSales?.length || 0)} из {allSales?.length || 0}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft className="w-4 h-4 mr-1" />
+                Назад
+              </Button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  return (
+                    <Button
+                      key={pageNum}
+                      variant={currentPage === pageNum ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCurrentPage(pageNum)}
+                      className="w-8 h-8 p-0"
+                    >
+                      {pageNum}
+                    </Button>
+                  );
+                })}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+              >
+                Вперёд
+                <ChevronRight className="w-4 h-4 ml-1" />
+              </Button>
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Sale Form Dialog */}

@@ -114,7 +114,7 @@ export function SaleFormDialog({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="text-2xl font-semibold">
-            {editingSale ? "Редактирование продажи" : "Новая продажа"}
+            {editingSale ? "Редактирование абонемента" : "Новый абонемент"}
           </DialogTitle>
         </DialogHeader>
 
@@ -127,7 +127,7 @@ export function SaleFormDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>
-                      ID продажи <span className="text-destructive">*</span>
+                      ID абонемента <span className="text-destructive">*</span>
                     </FormLabel>
                     <FormControl>
                       <Input
@@ -269,7 +269,7 @@ export function SaleFormDialog({
                         <SelectItem value="overdue">Просрочен</SelectItem>
                         <SelectItem value="underpaid">Недоплата</SelectItem>
                         <SelectItem value="paid_off">Погашен</SelectItem>
-                        <SelectItem value="completed">Завершен</SelectItem>
+                        <SelectItem value="completed">Полностью оплачен</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
