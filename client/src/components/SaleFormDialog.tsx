@@ -49,12 +49,17 @@ export function SaleFormDialog({
     defaultValues: {
       sale_id: 0,
       amocrm_lead_id: 0,
+      yclients_client_id: null,
+      yclients_company_id: null,
       client_phone: "",
       subscription_title: "",
       purchase_date: formatDateForInput(new Date()),
       total_cost: 0,
       is_installment: false,
+      total_payments: null,
+      payments_made_count: null,
       next_payment_date: null,
+      next_payment_amount: null,
       is_fully_paid: false,
       status: "active",
     },
@@ -65,25 +70,35 @@ export function SaleFormDialog({
       form.reset({
         sale_id: editingSale.sale_id,
         amocrm_lead_id: editingSale.amocrm_lead_id,
+        yclients_client_id: editingSale.yclients_client_id,
+        yclients_company_id: editingSale.yclients_company_id,
         client_phone: editingSale.client_phone,
         subscription_title: editingSale.subscription_title || "",
         purchase_date: formatDateForInput(editingSale.purchase_date),
         total_cost: editingSale.total_cost,
         is_installment: editingSale.is_installment,
+        total_payments: editingSale.total_payments,
+        payments_made_count: editingSale.payments_made_count,
         next_payment_date: editingSale.next_payment_date ? formatDateForInput(editingSale.next_payment_date) : null,
+        next_payment_amount: editingSale.next_payment_amount,
         is_fully_paid: editingSale.is_fully_paid,
-        status: editingSale.status as "active" | "overdue" | "paid",
+        status: editingSale.status,
       });
     } else {
       form.reset({
         sale_id: 0,
         amocrm_lead_id: 0,
+        yclients_client_id: null,
+        yclients_company_id: null,
         client_phone: "",
         subscription_title: "",
         purchase_date: formatDateForInput(new Date()),
         total_cost: 0,
         is_installment: false,
+        total_payments: null,
+        payments_made_count: null,
         next_payment_date: null,
+        next_payment_amount: null,
         is_fully_paid: false,
         status: "active",
       });
@@ -252,7 +267,9 @@ export function SaleFormDialog({
                       <SelectContent>
                         <SelectItem value="active">Активен</SelectItem>
                         <SelectItem value="overdue">Просрочен</SelectItem>
-                        <SelectItem value="paid">Оплачен</SelectItem>
+                        <SelectItem value="underpaid">Недоплата</SelectItem>
+                        <SelectItem value="paid_off">Погашен</SelectItem>
+                        <SelectItem value="completed">Завершен</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -315,6 +332,72 @@ export function SaleFormDialog({
                     <FormLabel className="!mt-0 font-normal cursor-pointer">
                       Полностью оплачена
                     </FormLabel>
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <FormField
+                control={form.control}
+                name="total_payments"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Всего платежей</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="3"
+                        data-testid="input-total-payments"
+                        {...field}
+                        value={field.value || ""}
+                        onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : null)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="payments_made_count"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Сделано платежей</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="1"
+                        data-testid="input-payments-made-count"
+                        {...field}
+                        value={field.value || ""}
+                        onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : null)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="next_payment_amount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Сумма след. платежа</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="5000"
+                        data-testid="input-next-payment-amount"
+                        {...field}
+                        value={field.value || ""}
+                        onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : null)}
+                      />
+                    </FormControl>
+                    <FormMessage />
                   </FormItem>
                 )}
               />

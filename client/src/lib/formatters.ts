@@ -25,16 +25,20 @@ export function getStatusLabel(status: string): string {
   const labels: Record<string, string> = {
     active: 'Активен',
     overdue: 'Просрочен',
-    paid: 'Оплачен'
+    underpaid: 'Недоплата',
+    paid_off: 'Погашен',
+    completed: 'Завершен'
   };
   return labels[status] || status;
 }
 
-export function getStatusVariant(status: string): 'default' | 'destructive' | 'success' | 'info' {
-  const variants: Record<string, 'default' | 'destructive' | 'success' | 'info'> = {
+export function getStatusVariant(status: string): 'default' | 'destructive' | 'success' | 'info' | 'warning' {
+  const variants: Record<string, 'default' | 'destructive' | 'success' | 'info' | 'warning'> = {
     active: 'info',
     overdue: 'destructive',
-    paid: 'success'
+    underpaid: 'warning',
+    paid_off: 'success',
+    completed: 'success'
   };
   return variants[status] || 'default';
 }

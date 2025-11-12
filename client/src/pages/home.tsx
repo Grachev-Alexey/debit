@@ -56,7 +56,7 @@ export default function HomePage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ predicate: (query) => 
-        query.queryKey[0]?.toString().startsWith("/api/sales") 
+        Boolean(query.queryKey[0]?.toString().startsWith("/api/sales"))
       });
       setDialogOpen(false);
       toast({
@@ -80,7 +80,7 @@ export default function HomePage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ predicate: (query) => 
-        query.queryKey[0]?.toString().startsWith("/api/sales") 
+        Boolean(query.queryKey[0]?.toString().startsWith("/api/sales"))
       });
       setDialogOpen(false);
       toast({
@@ -156,7 +156,9 @@ export default function HomePage() {
                 <SelectItem value="all">Все статусы</SelectItem>
                 <SelectItem value="active">Активен</SelectItem>
                 <SelectItem value="overdue">Просрочен</SelectItem>
-                <SelectItem value="paid">Оплачен</SelectItem>
+                <SelectItem value="underpaid">Недоплата</SelectItem>
+                <SelectItem value="paid_off">Погашен</SelectItem>
+                <SelectItem value="completed">Завершен</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -168,13 +170,13 @@ export default function HomePage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="font-semibold">ID Продажи</TableHead>
                   <TableHead className="font-semibold">Телефон клиента</TableHead>
                   <TableHead className="font-semibold">Название</TableHead>
                   <TableHead className="font-semibold">Статус</TableHead>
-                  <TableHead className="font-semibold text-right">Сумма</TableHead>
-                  <TableHead className="font-semibold">Дата след. платежа</TableHead>
-                  <TableHead className="font-semibold text-center">Просрочка, дней</TableHead>
+                  <TableHead className="font-semibold text-right">Общая сумма</TableHead>
+                  <TableHead className="font-semibold text-center">Прогресс</TableHead>
+                  <TableHead className="font-semibold">След. платёж</TableHead>
+                  <TableHead className="font-semibold text-center">Просрочка</TableHead>
                   <TableHead className="font-semibold text-right">Действия</TableHead>
                 </TableRow>
               </TableHeader>
@@ -196,9 +198,6 @@ export default function HomePage() {
                 ) : sales && sales.length > 0 ? (
                   sales.map((sale) => (
                     <TableRow key={sale.id} className="hover-elevate" data-testid={`row-sale-${sale.id}`}>
-                      <TableCell className="font-medium" data-testid={`text-sale-id-${sale.id}`}>
-                        {sale.sale_id}
-                      </TableCell>
                       <TableCell data-testid={`text-phone-${sale.id}`}>
                         {sale.client_phone}
                       </TableCell>
@@ -217,8 +216,24 @@ export default function HomePage() {
                       <TableCell className="text-right tabular-nums" data-testid={`text-cost-${sale.id}`}>
                         {formatCurrency(sale.total_cost)}
                       </TableCell>
+                      <TableCell className="text-center" data-testid={`text-progress-${sale.id}`}>
+                        {sale.is_installment && sale.total_payments ? (
+                          <span className="text-sm">
+                            {sale.payments_made_count || 0} / {sale.total_payments}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
                       <TableCell data-testid={`text-next-payment-${sale.id}`}>
-                        {formatDate(sale.next_payment_date)}
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-sm">{formatDate(sale.next_payment_date)}</span>
+                          {sale.next_payment_amount && (
+                            <span className="text-xs text-muted-foreground">
+                              {formatCurrency(sale.next_payment_amount)}
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell
                         className={`text-center tabular-nums ${
@@ -226,7 +241,7 @@ export default function HomePage() {
                         }`}
                         data-testid={`text-overdue-${sale.id}`}
                       >
-                        {sale.overdue_days}
+                        {sale.overdue_days > 0 ? `${sale.overdue_days} дн.` : '—'}
                       </TableCell>
                       <TableCell className="text-right">
                         <Button
