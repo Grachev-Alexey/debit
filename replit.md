@@ -8,6 +8,11 @@ This is a full-stack web application for managing client sales and payment track
 
 Preferred communication style: Simple, everyday language.
 
+**ВАЖНО: База данных**
+- Используется ТОЛЬКО MySQL - существующая база данных пользователя
+- PostgreSQL НЕ используется
+- Подключение через переменные окружения: MYSQL_HOST, MYSQL_PORT, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DATABASE
+
 ## System Architecture
 
 ### Frontend Architecture
@@ -57,10 +62,10 @@ Preferred communication style: Simple, everyday language.
 - Request logging middleware for API calls with duration tracking
 
 **Database Layer**
-- Currently configured for both **MySQL** and **PostgreSQL** (dual setup detected)
-- MySQL configuration present in `server/database.ts` with connection pooling
-- Drizzle ORM configured in `drizzle.config.ts` pointing to PostgreSQL
+- **MySQL only** - Uses existing user's MySQL database
+- MySQL configuration in `server/database.ts` with connection pooling via `mysql2/promise`
 - Database abstraction through storage interface pattern (`IStorage` in `server/storage.ts`)
+- Connection credentials stored securely in Replit Secrets
 - Schema includes fields for: sale_id, amocrm_lead_id, client_phone, subscription_title, purchase_date, total_cost, installment tracking, payment status, and overdue calculations
 
 **Data Validation**
@@ -93,12 +98,10 @@ Preferred communication style: Simple, everyday language.
 
 **Third-Party Services**
 - **AmoCRM Integration** - References to `amocrm_lead_id` suggest integration with AmoCRM CRM system for lead management
-- **Neon Database** - `@neondatabase/serverless` package indicates potential use of Neon serverless PostgreSQL (currently DATABASE_URL configured but not fully implemented)
 
 **Database Providers**
-- **MySQL** - Primary database with connection pooling via `mysql2/promise`
-- **PostgreSQL** - Configured for Drizzle ORM migrations (pending full migration)
-- **Note**: The application appears to be in transition from MySQL to PostgreSQL with Drizzle ORM
+- **MySQL only** - User's existing MySQL database with connection pooling via `mysql2/promise`
+- Credentials managed through Replit Secrets (MYSQL_HOST, MYSQL_PORT, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DATABASE)
 
 **Development Tools**
 - **Replit-specific plugins** for development environment (runtime error overlay, cartographer, dev banner)
