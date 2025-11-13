@@ -18,17 +18,59 @@ export class MySQLStorage implements IStorage {
 
     // Фильтр по поиску (телефон или ID продажи)
     if (filters?.search) {
-      query += ' AND (client_phone LIKE ? OR sale_id = ?)';
-      params.push(`%${filters.search}%`);
-      // Пытаемся преобразовать в число для поиска по ID
       const searchAsNumber = parseInt(filters.search);
-      params.push(isNaN(searchAsNumber) ? null : searchAsNumber);
+      if (!isNaN(searchAsNumber)) {
+        // Если search это число, ищем по телефону или ID продажи
+        query += ' AND (client_phone LIKE ? OR sale_id = ?)';
+        params.push(`%${filters.search}%`);
+        params.push(searchAsNumber);
+      } else {
+        // Если search не число, ищем только по телефону
+        query += ' AND client_phone LIKE ?';
+        params.push(`%${filters.search}%`);
+      }
     }
 
     // Фильтр по статусу
     if (filters?.status && filters.status !== 'all') {
       query += ' AND status = ?';
       params.push(filters.status);
+    }
+
+    // Фильтр по студии
+    if (filters?.companyId) {
+      query += ' AND yclients_company_id = ?';
+      params.push(filters.companyId);
+    }
+
+    // Фильтр по имени мастера (поиск с LIKE)
+    if (filters?.masterName) {
+      query += ' AND master_name LIKE ?';
+      params.push(`%${filters.masterName}%`);
+    }
+
+    // Фильтр по диапазону дат покупки
+    if (filters?.purchaseDateRange) {
+      if (filters.purchaseDateRange.from) {
+        query += ' AND purchase_date >= ?';
+        params.push(filters.purchaseDateRange.from);
+      }
+      if (filters.purchaseDateRange.to) {
+        query += ' AND purchase_date <= ?';
+        params.push(filters.purchaseDateRange.to);
+      }
+    }
+
+    // Фильтр по диапазону дат следующего платежа
+    if (filters?.nextPaymentDateRange) {
+      if (filters.nextPaymentDateRange.from) {
+        query += ' AND next_payment_date >= ?';
+        params.push(filters.nextPaymentDateRange.from);
+      }
+      if (filters.nextPaymentDateRange.to) {
+        query += ' AND next_payment_date <= ?';
+        params.push(filters.nextPaymentDateRange.to);
+      }
     }
 
     // Сортировка по дате покупки (новые сначала)
@@ -67,16 +109,18 @@ export class MySQLStorage implements IStorage {
     try {
       const [result] = await pool.execute<ResultSetHeader>(
         `INSERT INTO client_sales_tracker 
-        (sale_id, amocrm_lead_id, yclients_client_id, yclients_company_id, client_phone, subscription_title, purchase_date, 
+        (sale_id, amocrm_lead_id, yclients_client_id, yclients_company_id, client_phone, client_name, master_name, subscription_title, purchase_date, 
          total_cost, is_installment, payment_schedule, payment_history, total_payments, payments_made_count, next_payment_date, next_payment_amount, 
          is_fully_paid, status, comments, pdf_url, overdue_days)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
         [
           sale.sale_id,
           sale.amocrm_lead_id,
           sale.yclients_client_id || null,
           sale.yclients_company_id || null,
           sale.client_phone,
+          sale.client_name || null,
+          sale.master_name || null,
           sale.subscription_title || null,
           sale.purchase_date,
           sale.total_cost,
@@ -133,6 +177,14 @@ export class MySQLStorage implements IStorage {
       if (sale.client_phone !== undefined) {
         updates.push('client_phone = ?');
         params.push(sale.client_phone);
+      }
+      if (sale.client_name !== undefined) {
+        updates.push('client_name = ?');
+        params.push(sale.client_name || null);
+      }
+      if (sale.master_name !== undefined) {
+        updates.push('master_name = ?');
+        params.push(sale.master_name || null);
       }
       if (sale.subscription_title !== undefined) {
         updates.push('subscription_title = ?');
@@ -238,6 +290,8 @@ export class MySQLStorage implements IStorage {
       yclients_client_id: row.yclients_client_id || null,
       yclients_company_id: row.yclients_company_id || null,
       client_phone: row.client_phone,
+      client_name: row.client_name || null,
+      master_name: row.master_name || null,
       subscription_title: row.subscription_title,
       purchase_date: new Date(row.purchase_date),
       total_cost: parseFloat(row.total_cost),

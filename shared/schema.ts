@@ -35,6 +35,8 @@ export interface ClientSale {
   yclients_client_id: number | null;
   yclients_company_id: number | null;
   client_phone: string;
+  client_name: string | null;
+  master_name: string | null;
   subscription_title: string | null;
   purchase_date: Date;
   total_cost: number;
@@ -92,6 +94,8 @@ export const insertClientSaleSchema = z.object({
     z.number().int().nullable().optional()
   ),
   client_phone: z.string().min(1, { message: "Телефон клиента обязателен" }),
+  client_name: z.string().nullable().optional(),
+  master_name: z.string().nullable().optional(),
   subscription_title: z.string().nullable().optional(),
   purchase_date: z.string().min(1, { message: "Дата покупки обязательна" }),
   total_cost: z.coerce.number().positive({ message: "Общая стоимость должна быть положительной" }),
@@ -116,7 +120,7 @@ export const insertClientSaleSchema = z.object({
     message: "Статус должен быть: active, overdue, underpaid, paid_off или completed" 
   }).default("active"),
   comments: z.string().nullable().optional(),
-  pdf_url: z.string().url().nullable().optional(),
+  pdf_url: z.string().nullable().optional(),
 });
 
 // Схема для обновления продажи (id добавляется отдельно)
@@ -128,7 +132,16 @@ export type UpdateClientSale = z.infer<typeof updateClientSaleSchema>;
 // Типы для фильтрации
 export type SaleFilterStatus = SaleStatus | "all";
 
+export interface DateRange {
+  from: string;
+  to: string;
+}
+
 export interface SalesFilters {
   search?: string;
   status?: SaleFilterStatus;
+  companyId?: number;
+  masterName?: string;
+  purchaseDateRange?: DateRange;
+  nextPaymentDateRange?: DateRange;
 }

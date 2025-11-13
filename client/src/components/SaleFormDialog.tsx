@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertClientSaleSchema, type InsertClientSale, type ClientSale } from "@shared/schema";
+import { STUDIOS } from "@shared/constants";
 import {
   Dialog,
   DialogContent,
@@ -53,6 +54,8 @@ export function SaleFormDialog({
       yclients_client_id: null,
       yclients_company_id: null,
       client_phone: "",
+      client_name: "",
+      master_name: "",
       subscription_title: "",
       purchase_date: formatDateForInput(new Date()),
       total_cost: 0,
@@ -76,6 +79,8 @@ export function SaleFormDialog({
         yclients_client_id: editingSale.yclients_client_id,
         yclients_company_id: editingSale.yclients_company_id,
         client_phone: editingSale.client_phone,
+        client_name: editingSale.client_name || "",
+        master_name: editingSale.master_name || "",
         subscription_title: editingSale.subscription_title || "",
         purchase_date: formatDateForInput(editingSale.purchase_date),
         total_cost: editingSale.total_cost,
@@ -96,6 +101,8 @@ export function SaleFormDialog({
         yclients_client_id: null,
         yclients_company_id: null,
         client_phone: "",
+        client_name: "",
+        master_name: "",
         subscription_title: "",
         purchase_date: formatDateForInput(new Date()),
         total_cost: 0,
@@ -177,26 +184,97 @@ export function SaleFormDialog({
               />
             </div>
 
-            <FormField
-              control={form.control}
-              name="client_phone"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    Телефон клиента <span className="text-destructive">*</span>
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      type="tel"
-                      placeholder="+7 (999) 123-45-67"
-                      data-testid="input-client-phone"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="client_phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      Телефон клиента <span className="text-destructive">*</span>
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type="tel"
+                        placeholder="+7 (999) 123-45-67"
+                        data-testid="input-client-phone"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="client_name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>ФИО клиента</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Иванов Иван Иванович"
+                        data-testid="input-client-name"
+                        {...field}
+                        value={field.value || ""}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="master_name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>ФИО мастера</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Петрова Мария Сергеевна"
+                        data-testid="input-master-name"
+                        {...field}
+                        value={field.value || ""}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="yclients_company_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Студия</FormLabel>
+                    <Select 
+                      onValueChange={(value) => field.onChange(value === "none" ? null : Number(value))} 
+                      value={field.value?.toString() || "none"}
+                    >
+                      <FormControl>
+                        <SelectTrigger data-testid="select-studio">
+                          <SelectValue placeholder="Выберите студию" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="none">Не выбрано</SelectItem>
+                        {STUDIOS.map((studio) => (
+                          <SelectItem key={studio.id} value={studio.id.toString()}>
+                            {studio.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <FormField
               control={form.control}

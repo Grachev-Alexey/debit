@@ -8,11 +8,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // GET /api/sales - Получить список продаж с фильтрацией и поиском
   app.get("/api/sales", async (req, res) => {
     try {
-      const { search, status } = req.query;
+      const { 
+        search, 
+        status, 
+        companyId, 
+        masterName,
+        purchaseDateFrom,
+        purchaseDateTo,
+        nextPaymentDateFrom,
+        nextPaymentDateTo
+      } = req.query;
 
       const filters = {
         search: search ? String(search) : undefined,
         status: status ? String(status) as any : undefined,
+        companyId: companyId ? Number(companyId) : undefined,
+        masterName: masterName ? String(masterName) : undefined,
+        purchaseDateRange: (purchaseDateFrom || purchaseDateTo) ? {
+          from: purchaseDateFrom ? String(purchaseDateFrom) : '',
+          to: purchaseDateTo ? String(purchaseDateTo) : '',
+        } : undefined,
+        nextPaymentDateRange: (nextPaymentDateFrom || nextPaymentDateTo) ? {
+          from: nextPaymentDateFrom ? String(nextPaymentDateFrom) : '',
+          to: nextPaymentDateTo ? String(nextPaymentDateTo) : '',
+        } : undefined,
       };
 
       const sales = await storage.getSales(filters);

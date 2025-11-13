@@ -1,8 +1,9 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useDebouncedValue } from "@/hooks/use-debounce";
-import { Plus, Search, Pencil, ChevronLeft, ChevronRight, Calendar, MessageSquare, FileText, ExternalLink } from "lucide-react";
+import { Plus, Search, Pencil, ChevronLeft, ChevronRight, Calendar, MessageSquare, FileText, ExternalLink, X } from "lucide-react";
 import type { ClientSale, SalesFilters, InsertClientSale, PaymentScheduleEntry } from "@shared/schema";
+import { STUDIOS, getStudioName } from "@shared/constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -49,20 +50,32 @@ export default function HomePage() {
   const itemsPerPage = 20;
   const { toast} = useToast();
 
-  // Debounce search to reduce API calls
+  // Debounce search fields to reduce API calls
   const debouncedSearch = useDebouncedValue(filters.search, 300);
+  const debouncedMasterName = useDebouncedValue(filters.masterName, 300);
 
   // Построение query string для API
   const buildQueryKey = () => {
     const params = new URLSearchParams();
     if (debouncedSearch) params.set("search", debouncedSearch);
     if (filters.status && filters.status !== "all") params.set("status", filters.status);
+    if (filters.companyId) params.set("companyId", String(filters.companyId));
+    if (debouncedMasterName) params.set("masterName", debouncedMasterName);
+    if (filters.purchaseDateRange?.from) params.set("purchaseDateFrom", filters.purchaseDateRange.from);
+    if (filters.purchaseDateRange?.to) params.set("purchaseDateTo", filters.purchaseDateRange.to);
+    if (filters.nextPaymentDateRange?.from) params.set("nextPaymentDateFrom", filters.nextPaymentDateRange.from);
+    if (filters.nextPaymentDateRange?.to) params.set("nextPaymentDateTo", filters.nextPaymentDateRange.to);
     const queryString = params.toString();
     return queryString ? `/api/sales?${queryString}` : "/api/sales";
   };
 
   const { data: allSales, isLoading } = useQuery<ClientSale[]>({
-    queryKey: [buildQueryKey(), debouncedSearch, filters.status],
+    queryKey: ["/api/sales", debouncedSearch, filters.status, filters.companyId, debouncedMasterName, filters.purchaseDateRange, filters.nextPaymentDateRange],
+    queryFn: async () => {
+      const response = await fetch(buildQueryKey());
+      if (!response.ok) throw new Error("Failed to fetch sales");
+      return response.json();
+    },
   });
 
   // Client-side pagination
@@ -78,7 +91,7 @@ export default function HomePage() {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearch, filters.status]);
+  }, [debouncedSearch, filters.status, filters.companyId, debouncedMasterName, filters.purchaseDateRange, filters.nextPaymentDateRange]);
 
   // Мутация для создания нового абонемента
   const createMutation = useMutation({
@@ -187,33 +200,152 @@ export default function HomePage() {
       <main className="max-w-7xl mx-auto p-6 lg:p-8">
         {/* Search and Filters */}
         <Card className="p-6 mb-6">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Поиск по телефону"
-                className="pl-10"
-                value={filters.search}
-                onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-                data-testid="input-search"
-              />
+          <div className="flex flex-col gap-4">
+            {/* First row: search and status */}
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Поиск по телефону"
+                  className="pl-10"
+                  value={filters.search || ""}
+                  onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                  data-testid="input-search"
+                />
+              </div>
+              <Select
+                value={filters.status || "all"}
+                onValueChange={(value) => setFilters({ ...filters, status: value as any })}
+              >
+                <SelectTrigger className="w-full sm:w-[200px]" data-testid="select-filter-status">
+                  <SelectValue placeholder="Фильтр по статусу" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Все статусы</SelectItem>
+                  <SelectItem value="active">Активен</SelectItem>
+                  <SelectItem value="overdue">Просрочен</SelectItem>
+                  <SelectItem value="underpaid">Недоплата</SelectItem>
+                  <SelectItem value="paid_off">Погашен</SelectItem>
+                  <SelectItem value="completed">Полностью оплачен</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <Select
-              value={filters.status}
-              onValueChange={(value) => setFilters({ ...filters, status: value as any })}
-            >
-              <SelectTrigger className="w-full sm:w-[200px]" data-testid="select-filter-status">
-                <SelectValue placeholder="Фильтр по статусу" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Все статусы</SelectItem>
-                <SelectItem value="active">Активен</SelectItem>
-                <SelectItem value="overdue">Просрочен</SelectItem>
-                <SelectItem value="underpaid">Недоплата</SelectItem>
-                <SelectItem value="paid_off">Погашен</SelectItem>
-                <SelectItem value="completed">Полностью оплачен</SelectItem>
-              </SelectContent>
-            </Select>
+
+            {/* Second row: studio and master */}
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Select
+                value={filters.companyId?.toString() || "all"}
+                onValueChange={(value) => setFilters({ ...filters, companyId: value === "all" ? undefined : Number(value) })}
+              >
+                <SelectTrigger className="w-full sm:w-[220px]" data-testid="select-filter-studio">
+                  <SelectValue placeholder="Все студии" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Все студии</SelectItem>
+                  {STUDIOS.map((studio) => (
+                    <SelectItem key={studio.id} value={studio.id.toString()}>
+                      {studio.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Поиск по ФИО мастера"
+                  className="pl-10"
+                  value={filters.masterName || ""}
+                  onChange={(e) => setFilters({ ...filters, masterName: e.target.value || undefined })}
+                  data-testid="input-filter-master"
+                />
+              </div>
+            </div>
+
+            {/* Third row: date ranges */}
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1">
+                <div className="text-sm font-medium mb-2 text-muted-foreground">Дата покупки</div>
+                <div className="flex gap-2 flex-wrap">
+                  <Input
+                    type="date"
+                    placeholder="От"
+                    value={filters.purchaseDateRange?.from || ""}
+                    onChange={(e) => setFilters({ 
+                      ...filters, 
+                      purchaseDateRange: { 
+                        from: e.target.value, 
+                        to: filters.purchaseDateRange?.to || "" 
+                      } 
+                    })}
+                    data-testid="input-filter-purchase-date-from"
+                    className="flex-1 min-w-[140px]"
+                  />
+                  <Input
+                    type="date"
+                    placeholder="До"
+                    value={filters.purchaseDateRange?.to || ""}
+                    onChange={(e) => setFilters({ 
+                      ...filters, 
+                      purchaseDateRange: { 
+                        from: filters.purchaseDateRange?.from || "", 
+                        to: e.target.value 
+                      } 
+                    })}
+                    data-testid="input-filter-purchase-date-to"
+                    className="flex-1 min-w-[140px]"
+                  />
+                </div>
+              </div>
+              <div className="flex-1">
+                <div className="text-sm font-medium mb-2 text-muted-foreground">Следующий платеж</div>
+                <div className="flex gap-2 flex-wrap">
+                  <Input
+                    type="date"
+                    placeholder="От"
+                    value={filters.nextPaymentDateRange?.from || ""}
+                    onChange={(e) => setFilters({ 
+                      ...filters, 
+                      nextPaymentDateRange: { 
+                        from: e.target.value, 
+                        to: filters.nextPaymentDateRange?.to || "" 
+                      } 
+                    })}
+                    data-testid="input-filter-next-payment-date-from"
+                    className="flex-1 min-w-[140px]"
+                  />
+                  <Input
+                    type="date"
+                    placeholder="До"
+                    value={filters.nextPaymentDateRange?.to || ""}
+                    onChange={(e) => setFilters({ 
+                      ...filters, 
+                      nextPaymentDateRange: { 
+                        from: filters.nextPaymentDateRange?.from || "", 
+                        to: e.target.value 
+                      } 
+                    })}
+                    data-testid="input-filter-next-payment-date-to"
+                    className="flex-1 min-w-[140px]"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Clear filters button */}
+            {(filters.search || filters.status !== "all" || filters.companyId || filters.masterName || 
+              filters.purchaseDateRange?.from || filters.purchaseDateRange?.to || 
+              filters.nextPaymentDateRange?.from || filters.nextPaymentDateRange?.to) && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setFilters({ search: "", status: "all" })}
+                data-testid="button-clear-filters"
+                className="self-start"
+              >
+                <X className="w-4 h-4 mr-2" />
+                Сбросить фильтры
+              </Button>
+            )}
           </div>
         </Card>
 
@@ -223,11 +355,14 @@ export default function HomePage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="font-semibold">Телефон клиента</TableHead>
+                  <TableHead className="font-semibold">Телефон</TableHead>
+                  <TableHead className="font-semibold">ФИО клиента</TableHead>
+                  <TableHead className="font-semibold">Мастер</TableHead>
+                  <TableHead className="font-semibold">Студия</TableHead>
                   <TableHead className="font-semibold">Название</TableHead>
                   <TableHead className="font-semibold">Дата покупки</TableHead>
                   <TableHead className="font-semibold">Статус</TableHead>
-                  <TableHead className="font-semibold text-right">Общая сумма</TableHead>
+                  <TableHead className="font-semibold text-right">Сумма</TableHead>
                   <TableHead className="font-semibold text-center">Прогресс</TableHead>
                   <TableHead className="font-semibold">След. платёж</TableHead>
                   <TableHead className="font-semibold text-center">Просрочка</TableHead>
@@ -240,10 +375,13 @@ export default function HomePage() {
                   // Loading skeleton
                   Array.from({ length: 5 }).map((_, i) => (
                     <TableRow key={i}>
-                      <TableCell><Skeleton className="h-5 w-16" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-28" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-32" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-48" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                       <TableCell><Skeleton className="h-6 w-20" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-24 ml-auto" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-24" /></TableCell>
@@ -258,7 +396,22 @@ export default function HomePage() {
                       <TableCell data-testid={`text-phone-${sale.id}`}>
                         {sale.client_phone}
                       </TableCell>
-                      <TableCell className="max-w-md" data-testid={`text-title-${sale.id}`}>
+                      <TableCell data-testid={`text-client-name-${sale.id}`}>
+                        <span className={!sale.client_name ? "text-muted-foreground" : ""}>
+                          {sale.client_name || "—"}
+                        </span>
+                      </TableCell>
+                      <TableCell data-testid={`text-master-name-${sale.id}`}>
+                        <span className={!sale.master_name ? "text-muted-foreground" : ""}>
+                          {sale.master_name || "—"}
+                        </span>
+                      </TableCell>
+                      <TableCell data-testid={`text-studio-${sale.id}`}>
+                        <span className={!sale.yclients_company_id ? "text-muted-foreground" : ""}>
+                          {getStudioName(sale.yclients_company_id) || "—"}
+                        </span>
+                      </TableCell>
+                      <TableCell className="max-w-xs" data-testid={`text-title-${sale.id}`}>
                         <div className="line-clamp-2">
                           {sale.subscription_title || '—'}
                         </div>
@@ -366,7 +519,7 @@ export default function HomePage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-12 text-muted-foreground">
+                    <TableCell colSpan={13} className="text-center py-12 text-muted-foreground">
                       <div className="flex flex-col items-center gap-2">
                         <p className="text-lg font-medium">Абонементы не найдены</p>
                         <p className="text-sm">Попробуйте изменить фильтры или добавьте новый абонемент</p>

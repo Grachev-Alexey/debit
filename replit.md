@@ -38,10 +38,17 @@ Preferred communication style: Simple, everyday language.
 - Toast notifications for user feedback using custom hook-based system
 
 **Key Frontend Features**
-- Sales listing with search and filter capabilities (by phone number, sale ID, and status)
+- Sales listing with comprehensive search and filter capabilities:
+  - Search by phone number or sale ID
+  - Filter by status (active, overdue, underpaid, paid_off, completed)
+  - Filter by studio (15 locations across Russia)
+  - Search by master name
+  - Filter by purchase date range
+  - Filter by next payment date range
 - Modal-based forms for creating and editing sales records
 - Real-time data updates using React Query's invalidation patterns
 - Responsive table design with status badges and action buttons
+- Display of client names, master names, and studio locations
 - Date and currency formatters for Russian locale (ru-RU)
 
 ### Backend Architecture
@@ -55,9 +62,16 @@ Preferred communication style: Simple, everyday language.
 **API Design**
 - RESTful API endpoints under `/api` prefix
 - Routes defined in `server/routes.ts`:
-  - `GET /api/sales` - List sales with optional search and status filters
+  - `GET /api/sales` - List sales with extensive filtering:
+    - `search` - Phone or sale ID search
+    - `status` - Status filter
+    - `companyId` - Studio/company filter
+    - `masterName` - Master name search (LIKE)
+    - `purchaseDateFrom` / `purchaseDateTo` - Purchase date range
+    - `nextPaymentDateFrom` / `nextPaymentDateTo` - Next payment date range
   - `GET /api/sales/:id` - Get single sale by ID
-  - Additional CRUD endpoints for creating and updating sales
+  - `POST /api/sales` - Create new sale
+  - `PATCH /api/sales/:id` - Update existing sale
 - JSON request/response format with error handling middleware
 - Request logging middleware for API calls with duration tracking
 
@@ -79,15 +93,19 @@ Preferred communication style: Simple, everyday language.
 - `id` - Internal primary key (auto-increment)
 - `sale_id` - External sale identifier (displayed to users)
 - `amocrm_lead_id` - Integration identifier for AmoCRM
+- `yclients_company_id` - Studio/company identifier (filterable, nullable)
 - `client_phone` - Customer phone number (searchable)
+- `client_name` - Client's full name (nullable, added 2025-11-13)
+- `master_name` - Master's full name (searchable, nullable, added 2025-11-13)
 - `subscription_title` - Product/service name (nullable)
-- `purchase_date` - Transaction date
+- `purchase_date` - Transaction date (filterable by range)
 - `total_cost` - Total amount in rubles
 - `is_installment` - Boolean flag for installment plans
-- `next_payment_date` - Upcoming payment due date (nullable)
+- `next_payment_date` - Upcoming payment due date (filterable by range, nullable)
 - `overdue_days` - Calculated field for payment delays
 - `is_fully_paid` - Payment completion status
-- `status` - Enum: "active", "overdue", "paid"
+- `status` - Enum: "active", "overdue", "underpaid", "paid_off", "completed"
+- `pdf_url` - Contract PDF URL (nullable, validation relaxed 2025-11-13)
 
 **Status Management**
 - Three primary states: active (ongoing payments), overdue (missed deadlines), paid (completed)

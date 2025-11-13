@@ -120,9 +120,9 @@ export function PaymentScheduleEditor({ schedule, onSave, onCancel }: PaymentSch
                   <Label className="text-xs">Плановая дата</Label>
                   <Input
                     type="date"
-                    value={payment.planned_date.includes('.') ? 
+                    value={payment.planned_date && payment.planned_date.includes('.') ? 
                       payment.planned_date.split('.').reverse().join('-') : 
-                      payment.planned_date}
+                      payment.planned_date || ''}
                     onChange={(e) => handleUpdatePayment(index, "planned_date", e.target.value)}
                   />
                 </div>
@@ -162,7 +162,7 @@ export function PaymentScheduleEditor({ schedule, onSave, onCancel }: PaymentSch
                       <Label className="text-xs">Фактическая дата</Label>
                       <Input
                         type="date"
-                        value={payment.actual_date?.includes('.') ?
+                        value={payment.actual_date && payment.actual_date.includes('.') ?
                           payment.actual_date.split('.').reverse().join('-') :
                           payment.actual_date || ''}
                         onChange={(e) => handleUpdatePayment(index, "actual_date", e.target.value)}
