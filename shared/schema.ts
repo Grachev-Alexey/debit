@@ -137,11 +137,17 @@ export interface DateRange {
   to: string;
 }
 
+export type SortField = "purchase_date" | "next_payment_date" | "total_cost" | "client_name" | "master_name" | "status";
+export type SortOrder = "asc" | "desc";
+
 export interface SalesFilters {
   search?: string;
+  clientName?: string;
   status?: SaleFilterStatus;
   companyId?: number;
   masterName?: string;
   purchaseDateRange?: DateRange;
   nextPaymentDateRange?: DateRange;
+  sortBy?: SortField;
+  sortOrder?: SortOrder;
 }

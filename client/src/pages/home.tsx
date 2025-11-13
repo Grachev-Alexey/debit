@@ -1,8 +1,8 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useDebouncedValue } from "@/hooks/use-debounce";
-import { Plus, Search, Pencil, ChevronLeft, ChevronRight, Calendar, MessageSquare, FileText, ExternalLink, X } from "lucide-react";
-import type { ClientSale, SalesFilters, InsertClientSale, PaymentScheduleEntry } from "@shared/schema";
+import { Plus, Search, Pencil, ChevronLeft, ChevronRight, Calendar, MessageSquare, FileText, ExternalLink, X, Filter, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import type { ClientSale, SalesFilters, InsertClientSale, PaymentScheduleEntry, SortField, SortOrder } from "@shared/schema";
 import { STUDIOS, getStudioName } from "@shared/constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 import {
   Table,
   TableBody,
@@ -41,6 +47,8 @@ export default function HomePage() {
   const [filters, setFilters] = useState<SalesFilters>({
     search: "",
     status: "all",
+    sortBy: "purchase_date",
+    sortOrder: "desc",
   });
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSale, setEditingSale] = useState<ClientSale | null>(null);
@@ -52,27 +60,34 @@ export default function HomePage() {
 
   // Debounce search fields to reduce API calls
   const debouncedSearch = useDebouncedValue(filters.search, 300);
+  const debouncedClientName = useDebouncedValue(filters.clientName, 300);
   const debouncedMasterName = useDebouncedValue(filters.masterName, 300);
 
-  // Построение query string для API
-  const buildQueryKey = () => {
+  // Extract filter values for proper dependency tracking
+  const { status, companyId, purchaseDateRange, nextPaymentDateRange, sortBy, sortOrder } = filters;
+
+  // Построение query string для API - memoized для правильного кэширования
+  const apiUrl = useMemo(() => {
     const params = new URLSearchParams();
     if (debouncedSearch) params.set("search", debouncedSearch);
-    if (filters.status && filters.status !== "all") params.set("status", filters.status);
-    if (filters.companyId) params.set("companyId", String(filters.companyId));
+    if (debouncedClientName) params.set("clientName", debouncedClientName);
+    if (status && status !== "all") params.set("status", status);
+    if (companyId) params.set("companyId", String(companyId));
     if (debouncedMasterName) params.set("masterName", debouncedMasterName);
-    if (filters.purchaseDateRange?.from) params.set("purchaseDateFrom", filters.purchaseDateRange.from);
-    if (filters.purchaseDateRange?.to) params.set("purchaseDateTo", filters.purchaseDateRange.to);
-    if (filters.nextPaymentDateRange?.from) params.set("nextPaymentDateFrom", filters.nextPaymentDateRange.from);
-    if (filters.nextPaymentDateRange?.to) params.set("nextPaymentDateTo", filters.nextPaymentDateRange.to);
+    if (purchaseDateRange?.from) params.set("purchaseDateFrom", purchaseDateRange.from);
+    if (purchaseDateRange?.to) params.set("purchaseDateTo", purchaseDateRange.to);
+    if (nextPaymentDateRange?.from) params.set("nextPaymentDateFrom", nextPaymentDateRange.from);
+    if (nextPaymentDateRange?.to) params.set("nextPaymentDateTo", nextPaymentDateRange.to);
+    if (sortBy) params.set("sortBy", sortBy);
+    if (sortOrder) params.set("sortOrder", sortOrder);
     const queryString = params.toString();
     return queryString ? `/api/sales?${queryString}` : "/api/sales";
-  };
+  }, [debouncedSearch, debouncedClientName, status, companyId, debouncedMasterName, purchaseDateRange, nextPaymentDateRange, sortBy, sortOrder]);
 
   const { data: allSales, isLoading } = useQuery<ClientSale[]>({
-    queryKey: ["/api/sales", debouncedSearch, filters.status, filters.companyId, debouncedMasterName, filters.purchaseDateRange, filters.nextPaymentDateRange],
+    queryKey: [apiUrl],
     queryFn: async () => {
-      const response = await fetch(buildQueryKey());
+      const response = await fetch(apiUrl);
       if (!response.ok) throw new Error("Failed to fetch sales");
       return response.json();
     },
@@ -88,10 +103,27 @@ export default function HomePage() {
 
   const totalPages = Math.ceil((allSales?.length || 0) / itemsPerPage);
 
+  // Helper function to handle column sorting
+  const handleSort = (field: SortField) => {
+    setFilters(prev => ({
+      ...prev,
+      sortBy: field,
+      sortOrder: prev.sortBy === field && prev.sortOrder === "asc" ? "desc" : "asc",
+    }));
+  };
+
+  // Helper function to get sort icon
+  const getSortIcon = (field: SortField) => {
+    if (filters.sortBy !== field) return <ArrowUpDown className="w-4 h-4 ml-1" />;
+    return filters.sortOrder === "asc" ? 
+      <ArrowUp className="w-4 h-4 ml-1" /> : 
+      <ArrowDown className="w-4 h-4 ml-1" />;
+  };
+
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearch, filters.status, filters.companyId, debouncedMasterName, filters.purchaseDateRange, filters.nextPaymentDateRange]);
+  }, [debouncedSearch, debouncedClientName, filters.status, filters.companyId, debouncedMasterName, filters.purchaseDateRange, filters.nextPaymentDateRange, filters.sortBy, filters.sortOrder]);
 
   // Мутация для создания нового абонемента
   const createMutation = useMutation({
@@ -199,151 +231,133 @@ export default function HomePage() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto p-6 lg:p-8">
         {/* Search and Filters */}
-        <Card className="p-6 mb-6">
-          <div className="flex flex-col gap-4">
-            {/* First row: search and status */}
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Поиск по телефону"
-                  className="pl-10"
-                  value={filters.search || ""}
-                  onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-                  data-testid="input-search"
-                />
-              </div>
-              <Select
-                value={filters.status || "all"}
-                onValueChange={(value) => setFilters({ ...filters, status: value as any })}
-              >
-                <SelectTrigger className="w-full sm:w-[200px]" data-testid="select-filter-status">
-                  <SelectValue placeholder="Фильтр по статусу" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Все статусы</SelectItem>
-                  <SelectItem value="active">Активен</SelectItem>
-                  <SelectItem value="overdue">Просрочен</SelectItem>
-                  <SelectItem value="underpaid">Недоплата</SelectItem>
-                  <SelectItem value="paid_off">Погашен</SelectItem>
-                  <SelectItem value="completed">Полностью оплачен</SelectItem>
-                </SelectContent>
-              </Select>
+        <Card className="p-4 mb-6">
+          <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
+            {/* Search by phone */}
+            <div className="flex-1 min-w-[200px] relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Поиск по телефону"
+                className="pl-10"
+                value={filters.search || ""}
+                onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                data-testid="input-search"
+              />
             </div>
 
-            {/* Second row: studio and master */}
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Select
-                value={filters.companyId?.toString() || "all"}
-                onValueChange={(value) => setFilters({ ...filters, companyId: value === "all" ? undefined : Number(value) })}
-              >
-                <SelectTrigger className="w-full sm:w-[220px]" data-testid="select-filter-studio">
-                  <SelectValue placeholder="Все студии" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Все студии</SelectItem>
-                  {STUDIOS.map((studio) => (
-                    <SelectItem key={studio.id} value={studio.id.toString()}>
-                      {studio.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Поиск по ФИО мастера"
-                  className="pl-10"
-                  value={filters.masterName || ""}
-                  onChange={(e) => setFilters({ ...filters, masterName: e.target.value || undefined })}
-                  data-testid="input-filter-master"
-                />
-              </div>
+            {/* Search by client name */}
+            <div className="flex-1 min-w-[200px] relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Поиск по имени клиента"
+                className="pl-10"
+                value={filters.clientName || ""}
+                onChange={(e) => setFilters({ ...filters, clientName: e.target.value || undefined })}
+                data-testid="input-filter-client-name"
+              />
             </div>
 
-            {/* Third row: date ranges */}
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1">
-                <div className="text-sm font-medium mb-2 text-muted-foreground">Дата покупки</div>
-                <div className="flex gap-2 flex-wrap">
-                  <Input
-                    type="date"
-                    placeholder="От"
-                    value={filters.purchaseDateRange?.from || ""}
-                    onChange={(e) => setFilters({ 
-                      ...filters, 
-                      purchaseDateRange: { 
-                        from: e.target.value, 
-                        to: filters.purchaseDateRange?.to || "" 
-                      } 
-                    })}
-                    data-testid="input-filter-purchase-date-from"
-                    className="flex-1 min-w-[140px]"
-                  />
-                  <Input
-                    type="date"
-                    placeholder="До"
-                    value={filters.purchaseDateRange?.to || ""}
-                    onChange={(e) => setFilters({ 
-                      ...filters, 
-                      purchaseDateRange: { 
-                        from: filters.purchaseDateRange?.from || "", 
-                        to: e.target.value 
-                      } 
-                    })}
-                    data-testid="input-filter-purchase-date-to"
-                    className="flex-1 min-w-[140px]"
-                  />
+            {/* Status filter */}
+            <Select
+              value={filters.status || "all"}
+              onValueChange={(value) => setFilters({ ...filters, status: value as any })}
+            >
+              <SelectTrigger className="w-full sm:w-[180px]" data-testid="select-filter-status">
+                <SelectValue placeholder="Статус" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Все статусы</SelectItem>
+                <SelectItem value="active">Активен</SelectItem>
+                <SelectItem value="overdue">Просрочен</SelectItem>
+                <SelectItem value="underpaid">Недоплата</SelectItem>
+                <SelectItem value="paid_off">Погашен</SelectItem>
+                <SelectItem value="completed">Полностью оплачен</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Additional filters in popover */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" data-testid="button-more-filters">
+                  <Filter className="w-4 h-4 mr-2" />
+                  Ещё фильтры
+                  {(filters.companyId || filters.masterName || filters.purchaseDateRange || filters.nextPaymentDateRange) && (
+                    <span className="ml-2 h-2 w-2 rounded-full bg-primary" />
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[400px]" align="end">
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-semibold mb-3">Дополнительные фильтры</h4>
+                  </div>
+
+                  {/* Studio */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Студия</label>
+                    <Select
+                      value={filters.companyId?.toString() || "all"}
+                      onValueChange={(value) => setFilters({ ...filters, companyId: value === "all" ? undefined : Number(value) })}
+                    >
+                      <SelectTrigger data-testid="select-filter-studio">
+                        <SelectValue placeholder="Все студии" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Все студии</SelectItem>
+                        {STUDIOS.map((studio) => (
+                          <SelectItem key={studio.id} value={studio.id.toString()}>
+                            {studio.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Master */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Мастер</label>
+                    <Input
+                      placeholder="ФИО мастера"
+                      value={filters.masterName || ""}
+                      onChange={(e) => setFilters({ ...filters, masterName: e.target.value || undefined })}
+                      data-testid="input-filter-master"
+                    />
+                  </div>
+
+                  {/* Purchase date range */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Дата покупки</label>
+                    <DateRangePicker
+                      value={filters.purchaseDateRange}
+                      onChange={(range) => setFilters({ ...filters, purchaseDateRange: range })}
+                      placeholder="Выберите диапазон"
+                    />
+                  </div>
+
+                  {/* Next payment date range */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Следующий платеж</label>
+                    <DateRangePicker
+                      value={filters.nextPaymentDateRange}
+                      onChange={(range) => setFilters({ ...filters, nextPaymentDateRange: range })}
+                      placeholder="Выберите диапазон"
+                    />
+                  </div>
                 </div>
-              </div>
-              <div className="flex-1">
-                <div className="text-sm font-medium mb-2 text-muted-foreground">Следующий платеж</div>
-                <div className="flex gap-2 flex-wrap">
-                  <Input
-                    type="date"
-                    placeholder="От"
-                    value={filters.nextPaymentDateRange?.from || ""}
-                    onChange={(e) => setFilters({ 
-                      ...filters, 
-                      nextPaymentDateRange: { 
-                        from: e.target.value, 
-                        to: filters.nextPaymentDateRange?.to || "" 
-                      } 
-                    })}
-                    data-testid="input-filter-next-payment-date-from"
-                    className="flex-1 min-w-[140px]"
-                  />
-                  <Input
-                    type="date"
-                    placeholder="До"
-                    value={filters.nextPaymentDateRange?.to || ""}
-                    onChange={(e) => setFilters({ 
-                      ...filters, 
-                      nextPaymentDateRange: { 
-                        from: filters.nextPaymentDateRange?.from || "", 
-                        to: e.target.value 
-                      } 
-                    })}
-                    data-testid="input-filter-next-payment-date-to"
-                    className="flex-1 min-w-[140px]"
-                  />
-                </div>
-              </div>
-            </div>
+              </PopoverContent>
+            </Popover>
 
             {/* Clear filters button */}
-            {(filters.search || filters.status !== "all" || filters.companyId || filters.masterName || 
-              filters.purchaseDateRange?.from || filters.purchaseDateRange?.to || 
-              filters.nextPaymentDateRange?.from || filters.nextPaymentDateRange?.to) && (
+            {(filters.search || filters.clientName || filters.status !== "all" || filters.companyId || filters.masterName || 
+              filters.purchaseDateRange || filters.nextPaymentDateRange) && (
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setFilters({ search: "", status: "all" })}
+                onClick={() => setFilters({ search: "", status: "all", sortBy: "purchase_date", sortOrder: "desc" })}
                 data-testid="button-clear-filters"
-                className="self-start"
               >
                 <X className="w-4 h-4 mr-2" />
-                Сбросить фильтры
+                Сбросить
               </Button>
             )}
           </div>
@@ -356,15 +370,81 @@ export default function HomePage() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="font-semibold">Телефон</TableHead>
-                  <TableHead className="font-semibold">ФИО клиента</TableHead>
-                  <TableHead className="font-semibold">Мастер</TableHead>
+                  <TableHead className="font-semibold">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => handleSort("client_name")}
+                      className="font-semibold p-0 h-auto hover:bg-transparent"
+                      data-testid="button-sort-client-name"
+                    >
+                      ФИО клиента
+                      {getSortIcon("client_name")}
+                    </Button>
+                  </TableHead>
+                  <TableHead className="font-semibold">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => handleSort("master_name")}
+                      className="font-semibold p-0 h-auto hover:bg-transparent"
+                      data-testid="button-sort-master-name"
+                    >
+                      Мастер
+                      {getSortIcon("master_name")}
+                    </Button>
+                  </TableHead>
                   <TableHead className="font-semibold">Студия</TableHead>
                   <TableHead className="font-semibold">Название</TableHead>
-                  <TableHead className="font-semibold">Дата покупки</TableHead>
-                  <TableHead className="font-semibold">Статус</TableHead>
-                  <TableHead className="font-semibold text-right">Сумма</TableHead>
+                  <TableHead className="font-semibold">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => handleSort("purchase_date")}
+                      className="font-semibold p-0 h-auto hover:bg-transparent"
+                      data-testid="button-sort-purchase-date"
+                    >
+                      Дата покупки
+                      {getSortIcon("purchase_date")}
+                    </Button>
+                  </TableHead>
+                  <TableHead className="font-semibold">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => handleSort("status")}
+                      className="font-semibold p-0 h-auto hover:bg-transparent"
+                      data-testid="button-sort-status"
+                    >
+                      Статус
+                      {getSortIcon("status")}
+                    </Button>
+                  </TableHead>
+                  <TableHead className="font-semibold text-right">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => handleSort("total_cost")}
+                      className="font-semibold p-0 h-auto hover:bg-transparent"
+                      data-testid="button-sort-total-cost"
+                    >
+                      Сумма
+                      {getSortIcon("total_cost")}
+                    </Button>
+                  </TableHead>
                   <TableHead className="font-semibold text-center">Прогресс</TableHead>
-                  <TableHead className="font-semibold">След. платёж</TableHead>
+                  <TableHead className="font-semibold">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => handleSort("next_payment_date")}
+                      className="font-semibold p-0 h-auto hover:bg-transparent"
+                      data-testid="button-sort-next-payment"
+                    >
+                      След. платёж
+                      {getSortIcon("next_payment_date")}
+                    </Button>
+                  </TableHead>
                   <TableHead className="font-semibold text-center">Просрочка</TableHead>
                   <TableHead className="font-semibold">Комментарии</TableHead>
                   <TableHead className="font-semibold text-right">Действия</TableHead>

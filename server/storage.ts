@@ -43,6 +43,12 @@ export class MySQLStorage implements IStorage {
       params.push(filters.companyId);
     }
 
+    // Фильтр по имени клиента (поиск с LIKE)
+    if (filters?.clientName) {
+      query += ' AND client_name LIKE ?';
+      params.push(`%${filters.clientName}%`);
+    }
+
     // Фильтр по имени мастера (поиск с LIKE)
     if (filters?.masterName) {
       query += ' AND master_name LIKE ?';
@@ -73,8 +79,23 @@ export class MySQLStorage implements IStorage {
       }
     }
 
-    // Сортировка по дате покупки (новые сначала)
-    query += ' ORDER BY purchase_date DESC';
+    // Сортировка с whitelist для безопасности
+    const allowedSortFields = {
+      'purchase_date': 'purchase_date',
+      'next_payment_date': 'next_payment_date',
+      'total_cost': 'total_cost',
+      'client_name': 'client_name',
+      'master_name': 'master_name',
+      'status': 'status'
+    };
+
+    const sortField = filters?.sortBy && allowedSortFields[filters.sortBy] 
+      ? allowedSortFields[filters.sortBy] 
+      : 'purchase_date';
+    
+    const sortDirection = filters?.sortOrder === 'asc' ? 'ASC' : 'DESC';
+    
+    query += ` ORDER BY ${sortField} ${sortDirection}`;
 
     try {
       const [rows] = await pool.execute<RowDataPacket[]>(query, params);

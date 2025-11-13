@@ -9,18 +9,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/sales", async (req, res) => {
     try {
       const { 
-        search, 
+        search,
+        clientName,
         status, 
         companyId, 
         masterName,
         purchaseDateFrom,
         purchaseDateTo,
         nextPaymentDateFrom,
-        nextPaymentDateTo
+        nextPaymentDateTo,
+        sortBy,
+        sortOrder
       } = req.query;
 
       const filters = {
         search: search ? String(search) : undefined,
+        clientName: clientName ? String(clientName) : undefined,
         status: status ? String(status) as any : undefined,
         companyId: companyId ? Number(companyId) : undefined,
         masterName: masterName ? String(masterName) : undefined,
@@ -32,6 +36,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           from: nextPaymentDateFrom ? String(nextPaymentDateFrom) : '',
           to: nextPaymentDateTo ? String(nextPaymentDateTo) : '',
         } : undefined,
+        sortBy: sortBy ? String(sortBy) as any : undefined,
+        sortOrder: sortOrder ? String(sortOrder) as any : undefined,
       };
 
       const sales = await storage.getSales(filters);
