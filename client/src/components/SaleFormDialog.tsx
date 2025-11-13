@@ -64,6 +64,7 @@ export function SaleFormDialog({
       is_fully_paid: false,
       status: "active",
       comments: null,
+      pdf_url: null,
     },
   });
 
@@ -86,6 +87,7 @@ export function SaleFormDialog({
         is_fully_paid: editingSale.is_fully_paid,
         status: editingSale.status,
         comments: editingSale.comments || "",
+        pdf_url: editingSale.pdf_url || "",
       });
     } else {
       form.reset({
@@ -105,12 +107,17 @@ export function SaleFormDialog({
         is_fully_paid: false,
         status: "active",
         comments: null,
+        pdf_url: null,
       });
     }
   }, [editingSale, form]);
 
   const handleSubmit = (data: InsertClientSale) => {
-    onSubmit(data);
+    const cleanedData = {
+      ...data,
+      pdf_url: data.pdf_url && data.pdf_url.trim() !== "" ? data.pdf_url : null,
+    };
+    onSubmit(cleanedData);
   };
 
   return (
@@ -406,6 +413,26 @@ export function SaleFormDialog({
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="pdf_url"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Ссылка на договор (PDF)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="url"
+                      placeholder="https://example.com/contract.pdf"
+                      data-testid="input-pdf-url"
+                      {...field}
+                      value={field.value || ""}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}

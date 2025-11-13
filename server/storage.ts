@@ -69,8 +69,8 @@ export class MySQLStorage implements IStorage {
         `INSERT INTO client_sales_tracker 
         (sale_id, amocrm_lead_id, yclients_client_id, yclients_company_id, client_phone, subscription_title, purchase_date, 
          total_cost, is_installment, payment_schedule, payment_history, total_payments, payments_made_count, next_payment_date, next_payment_amount, 
-         is_fully_paid, status, comments, overdue_days)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+         is_fully_paid, status, comments, pdf_url, overdue_days)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
         [
           sale.sale_id,
           sale.amocrm_lead_id,
@@ -90,6 +90,7 @@ export class MySQLStorage implements IStorage {
           sale.is_fully_paid ? 1 : 0,
           sale.status,
           sale.comments || null,
+          sale.pdf_url || null,
         ]
       );
 
@@ -185,6 +186,10 @@ export class MySQLStorage implements IStorage {
         updates.push('comments = ?');
         params.push(sale.comments || null);
       }
+      if (sale.pdf_url !== undefined) {
+        updates.push('pdf_url = ?');
+        params.push(sale.pdf_url || null);
+      }
 
       if (updates.length === 0) {
         // Нет полей для обновления
@@ -252,6 +257,7 @@ export class MySQLStorage implements IStorage {
       last_checked_at: row.last_checked_at ? new Date(row.last_checked_at) : null,
       created_at: row.created_at ? new Date(row.created_at) : null,
       updated_at: row.updated_at ? new Date(row.updated_at) : null,
+      pdf_url: row.pdf_url || null,
     };
   }
 }

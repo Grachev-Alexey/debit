@@ -1,8 +1,8 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useDebouncedValue } from "@/hooks/use-debounce";
-import { Plus, Search, Pencil, ChevronLeft, ChevronRight, Calendar, MessageSquare } from "lucide-react";
-import type { ClientSale, SalesFilters, InsertClientSale } from "@shared/schema";
+import { Plus, Search, Pencil, ChevronLeft, ChevronRight, Calendar, MessageSquare, FileText, ExternalLink } from "lucide-react";
+import type { ClientSale, SalesFilters, InsertClientSale, PaymentScheduleEntry } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -106,8 +106,9 @@ export default function HomePage() {
 
   // Мутация для обновления абонемента
   const updateMutation = useMutation<ClientSale, Error, { id: number; data: Partial<InsertClientSale> }>({
-    mutationFn: async ({ id, data }: { id: number; data: Partial<InsertClientSale> }) => {
-      return await apiRequest("PATCH", `/api/sales/${id}`, data);
+    mutationFn: async ({ id, data }: { id: number; data: Partial<InsertClientSale> }): Promise<ClientSale> => {
+      const response = await apiRequest("PATCH", `/api/sales/${id}`, data);
+      return await response.json();
     },
     onSuccess: (updatedSale) => {
       queryClient.invalidateQueries({ predicate: (query) => 
@@ -158,18 +159,12 @@ export default function HomePage() {
     setDetailsDialogOpen(true);
   };
 
-  const handlePaymentComplete = (paymentIndex: number, paidDate: string, paidAmount: number) => {
+  const handleScheduleUpdate = (schedule: PaymentScheduleEntry[]) => {
     if (!selectedSale) return;
-
-    const existingHistory = selectedSale.payment_history || [];
-    const newHistory = [
-      ...existingHistory,
-      { paymentIndex, paidDate, paidAmount }
-    ];
 
     updateMutation.mutate({
       id: selectedSale.id,
-      data: { payment_history: newHistory }
+      data: { payment_schedule: schedule }
     });
   };
 
@@ -230,6 +225,7 @@ export default function HomePage() {
                 <TableRow>
                   <TableHead className="font-semibold">Телефон клиента</TableHead>
                   <TableHead className="font-semibold">Название</TableHead>
+                  <TableHead className="font-semibold">Дата покупки</TableHead>
                   <TableHead className="font-semibold">Статус</TableHead>
                   <TableHead className="font-semibold text-right">Общая сумма</TableHead>
                   <TableHead className="font-semibold text-center">Прогресс</TableHead>
@@ -246,6 +242,7 @@ export default function HomePage() {
                     <TableRow key={i}>
                       <TableCell><Skeleton className="h-5 w-16" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-48" /></TableCell>
                       <TableCell><Skeleton className="h-6 w-20" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-24 ml-auto" /></TableCell>
@@ -265,6 +262,9 @@ export default function HomePage() {
                         <div className="line-clamp-2">
                           {sale.subscription_title || '—'}
                         </div>
+                      </TableCell>
+                      <TableCell className="text-sm" data-testid={`text-purchase-date-${sale.id}`}>
+                        {formatDate(sale.purchase_date)}
                       </TableCell>
                       <TableCell>
                         <Badge
@@ -330,6 +330,17 @@ export default function HomePage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex gap-1 justify-end">
+                          {sale.pdf_url && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => window.open(sale.pdf_url!, '_blank')}
+                              data-testid={`button-view-contract-${sale.id}`}
+                              title="Открыть договор"
+                            >
+                              <FileText className="w-5 h-5" />
+                            </Button>
+                          )}
                           {sale.payment_schedule && sale.payment_schedule.length > 0 && (
                             <Button
                               variant="ghost"
@@ -355,7 +366,7 @@ export default function HomePage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
+                    <TableCell colSpan={10} className="text-center py-12 text-muted-foreground">
                       <div className="flex flex-col items-center gap-2">
                         <p className="text-lg font-medium">Абонементы не найдены</p>
                         <p className="text-sm">Попробуйте изменить фильтры или добавьте новый абонемент</p>
@@ -453,7 +464,7 @@ export default function HomePage() {
               <TabsContent value="schedule" className="mt-4">
                 <PaymentScheduleView
                   sale={selectedSale}
-                  onPaymentComplete={handlePaymentComplete}
+                  onScheduleUpdate={handleScheduleUpdate}
                 />
               </TabsContent>
               <TabsContent value="comments" className="mt-4">
@@ -466,11 +477,39 @@ export default function HomePage() {
                       <p className="text-sm text-muted-foreground">Комментарии отсутствуют</p>
                     )}
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    <p><strong>Клиент:</strong> {selectedSale.client_phone}</p>
-                    <p><strong>Абонемент:</strong> {selectedSale.subscription_title}</p>
-                    <p><strong>Сумма:</strong> {formatCurrency(selectedSale.total_cost)}</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 border rounded-lg">
+                      <h4 className="text-sm font-semibold mb-2">Информация о клиенте</h4>
+                      <div className="text-xs text-muted-foreground space-y-1">
+                        <p><strong>Телефон:</strong> {selectedSale.client_phone}</p>
+                        <p><strong>Абонемент:</strong> {selectedSale.subscription_title}</p>
+                        <p><strong>Дата покупки:</strong> {formatDate(selectedSale.purchase_date)}</p>
+                      </div>
+                    </div>
+                    <div className="p-4 border rounded-lg">
+                      <h4 className="text-sm font-semibold mb-2">Финансовая информация</h4>
+                      <div className="text-xs text-muted-foreground space-y-1">
+                        <p><strong>Общая сумма:</strong> {formatCurrency(selectedSale.total_cost)}</p>
+                        <p><strong>Рассрочка:</strong> {selectedSale.is_installment ? 'Да' : 'Нет'}</p>
+                        {selectedSale.is_installment && (
+                          <p><strong>Платежей:</strong> {selectedSale.payments_made_count || 0} из {selectedSale.total_payments || 0}</p>
+                        )}
+                      </div>
+                    </div>
                   </div>
+                  {selectedSale.pdf_url && (
+                    <div className="flex justify-center">
+                      <Button
+                        variant="outline"
+                        onClick={() => window.open(selectedSale.pdf_url!, '_blank')}
+                        className="w-full max-w-md"
+                      >
+                        <FileText className="w-4 h-4 mr-2" />
+                        Открыть договор
+                        <ExternalLink className="w-4 h-4 ml-2" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </TabsContent>
             </Tabs>

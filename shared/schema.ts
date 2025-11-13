@@ -7,9 +7,18 @@ import { z } from "zod";
 export type SaleStatus = "active" | "overdue" | "underpaid" | "paid_off" | "completed";
 
 export interface PaymentScheduleEntry {
-  date: string;
-  amount: number;
-  description: string;
+  payment_number: number;
+  planned_date: string;
+  planned_amount: number;
+  status?: "pending" | "paid" | "overdue";
+  actual_date?: string;
+  actual_amount?: number;
+  difference?: number;
+  discrepancy?: "overpaid" | "underpaid" | "exact";
+  
+  date?: string;
+  amount?: number;
+  description?: string;
 }
 
 export interface PaymentHistoryEntry {
@@ -45,12 +54,22 @@ export interface ClientSale {
   last_checked_at: Date | null;
   created_at: Date | null;
   updated_at: Date | null;
+  pdf_url: string | null;
 }
 
 export const paymentScheduleEntrySchema = z.object({
-  date: z.string(),
-  amount: z.number().nonnegative({ message: "Сумма платежа не может быть отрицательной" }),
-  description: z.string(),
+  payment_number: z.number().int().positive(),
+  planned_date: z.string(),
+  planned_amount: z.number().nonnegative({ message: "Сумма платежа не может быть отрицательной" }),
+  status: z.enum(["pending", "paid", "overdue"]).optional(),
+  actual_date: z.string().optional(),
+  actual_amount: z.number().nonnegative().optional(),
+  difference: z.number().optional(),
+  discrepancy: z.enum(["overpaid", "underpaid", "exact"]).optional(),
+  
+  date: z.string().optional(),
+  amount: z.number().nonnegative().optional(),
+  description: z.string().optional(),
 });
 
 export const paymentHistoryEntrySchema = z.object({
@@ -97,6 +116,7 @@ export const insertClientSaleSchema = z.object({
     message: "Статус должен быть: active, overdue, underpaid, paid_off или completed" 
   }).default("active"),
   comments: z.string().nullable().optional(),
+  pdf_url: z.string().url().nullable().optional(),
 });
 
 // Схема для обновления продажи (id добавляется отдельно)
