@@ -11,6 +11,51 @@ export interface IStorage {
 }
 
 export class MySQLStorage implements IStorage {
+  // Вычислить количество дней просрочки на основе графика платежей
+  private calculateOverdueDays(paymentSchedule: any): number {
+    if (!paymentSchedule || !Array.isArray(paymentSchedule) || paymentSchedule.length === 0) {
+      return 0;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Найти первый неоплаченный и просроченный платеж
+    for (const payment of paymentSchedule) {
+      if (payment.status !== 'paid') {
+        const plannedDate = this.parseRussianDate(payment.planned_date);
+        if (plannedDate && plannedDate < today) {
+          const diffTime = today.getTime() - plannedDate.getTime();
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          return diffDays;
+        }
+      }
+    }
+
+    return 0;
+  }
+
+  // Парсить дату в русском формате (DD.MM.YYYY) или ISO
+  private parseRussianDate(dateStr?: string): Date | null {
+    if (!dateStr) return null;
+
+    // Если уже в формате ISO (YYYY-MM-DD)
+    if (dateStr.includes('-')) {
+      return new Date(dateStr);
+    }
+
+    // Парсинг русского формата DD.MM.YYYY
+    const parts = dateStr.split('.');
+    if (parts.length === 3) {
+      const day = parseInt(parts[0]);
+      const month = parseInt(parts[1]) - 1; // месяцы в JS начинаются с 0
+      const year = parseInt(parts[2]);
+      return new Date(year, month, day);
+    }
+
+    return null;
+  }
+
   // Получить список продаж с фильтрацией и поиском
   async getSales(filters?: SalesFilters): Promise<ClientSale[]> {
     let query = 'SELECT * FROM client_sales_tracker WHERE 1=1';
@@ -128,12 +173,15 @@ export class MySQLStorage implements IStorage {
   // Создать новую продажу
   async createSale(sale: InsertClientSale): Promise<ClientSale> {
     try {
+      // Вычислить overdue_days для новой записи, если есть график платежей
+      const overdueDays = sale.payment_schedule ? this.calculateOverdueDays(sale.payment_schedule) : 0;
+
       const [result] = await pool.execute<ResultSetHeader>(
         `INSERT INTO client_sales_tracker 
         (sale_id, amocrm_lead_id, yclients_client_id, yclients_company_id, client_phone, client_name, master_name, subscription_title, purchase_date, 
          total_cost, is_installment, payment_schedule, payment_history, total_payments, payments_made_count, next_payment_date, next_payment_amount, 
          is_fully_paid, status, comments, pdf_url, overdue_days)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           sale.sale_id,
           sale.amocrm_lead_id,
@@ -156,6 +204,7 @@ export class MySQLStorage implements IStorage {
           sale.status,
           sale.comments || null,
           sale.pdf_url || null,
+          overdueDays,
         ]
       );
 
@@ -226,6 +275,11 @@ export class MySQLStorage implements IStorage {
       if (sale.payment_schedule !== undefined) {
         updates.push('payment_schedule = ?');
         params.push(sale.payment_schedule ? JSON.stringify(sale.payment_schedule) : null);
+        
+        // Вычислить overdue_days на основе нового графика платежей
+        const overdueDays = this.calculateOverdueDays(sale.payment_schedule);
+        updates.push('overdue_days = ?');
+        params.push(overdueDays);
       }
       if (sale.payment_history !== undefined) {
         updates.push('payment_history = ?');

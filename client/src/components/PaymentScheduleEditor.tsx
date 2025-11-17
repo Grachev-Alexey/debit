@@ -22,8 +22,35 @@ interface PaymentScheduleEditorProps {
 }
 
 export function PaymentScheduleEditor({ schedule, onSave, onCancel }: PaymentScheduleEditorProps) {
+  const convertRussianDateToISO = (russianDate?: string): string => {
+    if (!russianDate) return new Date().toISOString().split('T')[0];
+    if (russianDate.includes('-')) return russianDate;
+    
+    const parts = russianDate.split('.');
+    if (parts.length === 3) {
+      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+    return new Date().toISOString().split('T')[0];
+  };
+
+  const normalizeScheduleForEditing = (schedule: PaymentScheduleEntry[] | null): PaymentScheduleEntry[] => {
+    if (!schedule || schedule.length === 0) {
+      return [];
+    }
+    
+    return schedule.map((entry, index) => ({
+      ...entry,
+      payment_number: entry.payment_number || index + 1,
+      planned_date: convertRussianDateToISO(entry.planned_date),
+      planned_amount: entry.planned_amount || 0,
+      status: entry.status || "pending",
+      actual_date: entry.actual_date ? convertRussianDateToISO(entry.actual_date) : undefined,
+      actual_amount: entry.actual_amount || undefined,
+    }));
+  };
+
   const [editedSchedule, setEditedSchedule] = useState<PaymentScheduleEntry[]>(
-    schedule || []
+    normalizeScheduleForEditing(schedule)
   );
 
   const handleAddPayment = () => {
@@ -52,11 +79,21 @@ export function PaymentScheduleEditor({ schedule, onSave, onCancel }: PaymentSch
   };
 
   const convertDateToRussianFormat = (isoDate: string): string => {
-    const date = new Date(isoDate);
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    return `${day}.${month}.${year}`;
+    // Парсим строку напрямую без создания Date объекта
+    // чтобы избежать проблем с часовыми поясами
+    if (!isoDate) return '';
+    
+    // Если уже в русском формате, возвращаем как есть
+    if (isoDate.includes('.')) return isoDate;
+    
+    // Парсим ISO формат YYYY-MM-DD
+    const parts = isoDate.split('-');
+    if (parts.length === 3) {
+      const [year, month, day] = parts;
+      return `${day}.${month}.${year}`;
+    }
+    
+    return isoDate;
   };
 
   const handleSave = () => {
@@ -120,9 +157,7 @@ export function PaymentScheduleEditor({ schedule, onSave, onCancel }: PaymentSch
                   <Label className="text-xs">Плановая дата</Label>
                   <Input
                     type="date"
-                    value={payment.planned_date && payment.planned_date.includes('.') ? 
-                      payment.planned_date.split('.').reverse().join('-') : 
-                      payment.planned_date || ''}
+                    value={payment.planned_date || ''}
                     onChange={(e) => handleUpdatePayment(index, "planned_date", e.target.value)}
                   />
                 </div>
@@ -132,7 +167,7 @@ export function PaymentScheduleEditor({ schedule, onSave, onCancel }: PaymentSch
                   <Input
                     type="number"
                     step="0.01"
-                    value={payment.planned_amount}
+                    value={payment.planned_amount ?? 0}
                     onChange={(e) =>
                       handleUpdatePayment(index, "planned_amount", parseFloat(e.target.value) || 0)
                     }
@@ -162,9 +197,7 @@ export function PaymentScheduleEditor({ schedule, onSave, onCancel }: PaymentSch
                       <Label className="text-xs">Фактическая дата</Label>
                       <Input
                         type="date"
-                        value={payment.actual_date && payment.actual_date.includes('.') ?
-                          payment.actual_date.split('.').reverse().join('-') :
-                          payment.actual_date || ''}
+                        value={payment.actual_date || ''}
                         onChange={(e) => handleUpdatePayment(index, "actual_date", e.target.value)}
                       />
                     </div>
@@ -174,10 +207,10 @@ export function PaymentScheduleEditor({ schedule, onSave, onCancel }: PaymentSch
                       <Input
                         type="number"
                         step="0.01"
-                        value={payment.actual_amount || payment.planned_amount}
+                        value={payment.actual_amount ?? payment.planned_amount ?? 0}
                         onChange={(e) => {
                           const actualAmount = parseFloat(e.target.value) || 0;
-                          const difference = actualAmount - payment.planned_amount;
+                          const difference = actualAmount - (payment.planned_amount || 0);
                           let discrepancy: "overpaid" | "underpaid" | "exact" | undefined = "exact";
                           if (difference > 0) discrepancy = "overpaid";
                           else if (difference < 0) discrepancy = "underpaid";

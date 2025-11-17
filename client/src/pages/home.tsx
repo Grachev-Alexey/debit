@@ -366,11 +366,11 @@ export default function HomePage() {
         {/* Table */}
         <Card className="overflow-hidden">
           <div className="overflow-x-auto">
-            <Table>
+            <Table className="text-sm">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="font-semibold">Телефон</TableHead>
-                  <TableHead className="font-semibold">
+                  <TableHead className="font-semibold w-[110px]">Телефон</TableHead>
+                  <TableHead className="font-semibold w-[150px]">
                     <Button 
                       variant="ghost" 
                       size="sm" 
@@ -378,11 +378,11 @@ export default function HomePage() {
                       className="font-semibold p-0 h-auto hover:bg-transparent"
                       data-testid="button-sort-client-name"
                     >
-                      ФИО клиента
+                      Клиент
                       {getSortIcon("client_name")}
                     </Button>
                   </TableHead>
-                  <TableHead className="font-semibold">
+                  <TableHead className="font-semibold w-[130px]">
                     <Button 
                       variant="ghost" 
                       size="sm" 
@@ -394,9 +394,9 @@ export default function HomePage() {
                       {getSortIcon("master_name")}
                     </Button>
                   </TableHead>
-                  <TableHead className="font-semibold">Студия</TableHead>
-                  <TableHead className="font-semibold">Название</TableHead>
-                  <TableHead className="font-semibold">
+                  <TableHead className="font-semibold w-[100px]">Студия</TableHead>
+                  <TableHead className="font-semibold max-w-[200px]">Название</TableHead>
+                  <TableHead className="font-semibold w-[100px]">
                     <Button 
                       variant="ghost" 
                       size="sm" 
@@ -404,11 +404,11 @@ export default function HomePage() {
                       className="font-semibold p-0 h-auto hover:bg-transparent"
                       data-testid="button-sort-purchase-date"
                     >
-                      Дата покупки
+                      Дата
                       {getSortIcon("purchase_date")}
                     </Button>
                   </TableHead>
-                  <TableHead className="font-semibold">
+                  <TableHead className="font-semibold w-[100px]">
                     <Button 
                       variant="ghost" 
                       size="sm" 
@@ -420,7 +420,7 @@ export default function HomePage() {
                       {getSortIcon("status")}
                     </Button>
                   </TableHead>
-                  <TableHead className="font-semibold text-right">
+                  <TableHead className="font-semibold text-right w-[90px]">
                     <Button 
                       variant="ghost" 
                       size="sm" 
@@ -432,8 +432,8 @@ export default function HomePage() {
                       {getSortIcon("total_cost")}
                     </Button>
                   </TableHead>
-                  <TableHead className="font-semibold text-center">Прогресс</TableHead>
-                  <TableHead className="font-semibold">
+                  <TableHead className="font-semibold text-center w-[110px]">Прогресс</TableHead>
+                  <TableHead className="font-semibold w-[120px]">
                     <Button 
                       variant="ghost" 
                       size="sm" 
@@ -441,13 +441,13 @@ export default function HomePage() {
                       className="font-semibold p-0 h-auto hover:bg-transparent"
                       data-testid="button-sort-next-payment"
                     >
-                      След. платёж
+                      След. пл.
                       {getSortIcon("next_payment_date")}
                     </Button>
                   </TableHead>
-                  <TableHead className="font-semibold text-center">Просрочка</TableHead>
-                  <TableHead className="font-semibold">Комментарии</TableHead>
-                  <TableHead className="font-semibold text-right">Действия</TableHead>
+                  <TableHead className="font-semibold text-center w-[80px]">Просроч.</TableHead>
+                  <TableHead className="font-semibold max-w-[150px]">Коммент.</TableHead>
+                  <TableHead className="font-semibold text-right w-[100px]">Действия</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -574,17 +574,16 @@ export default function HomePage() {
                               <FileText className="w-5 h-5" />
                             </Button>
                           )}
-                          {sale.payment_schedule && sale.payment_schedule.length > 0 && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleViewDetails(sale)}
-                              data-testid={`button-view-details-${sale.id}`}
-                              title="График платежей"
-                            >
-                              <Calendar className="w-5 h-5" />
-                            </Button>
-                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleViewDetails(sale)}
+                            data-testid={`button-view-details-${sale.id}`}
+                            title={sale.payment_schedule && sale.payment_schedule.length > 0 ? "График платежей" : "Создать график платежей"}
+                            className={!sale.payment_schedule || sale.payment_schedule.length === 0 ? "text-muted-foreground" : ""}
+                          >
+                            <Calendar className="w-5 h-5" />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="icon"
