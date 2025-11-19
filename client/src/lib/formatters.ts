@@ -5,9 +5,11 @@ export function formatCurrency(amount: number): string {
   return `${amount.toLocaleString('ru-RU')} ₽`;
 }
 
-export function formatDate(date: Date | string | null): string {
+export function formatDate(date: Date | string | null | undefined): string {
   if (!date) return '—';
   const d = typeof date === 'string' ? new Date(date) : date;
+  // Проверяем на Invalid Date
+  if (isNaN(d.getTime())) return '—';
   return d.toLocaleDateString('ru-RU', {
     day: '2-digit',
     month: '2-digit',

@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useDebouncedValue } from "@/hooks/use-debounce";
-import { Plus, Search, Pencil, ChevronLeft, ChevronRight, Calendar, MessageSquare, FileText, ExternalLink, X, Filter, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Search, Pencil, ChevronLeft, ChevronRight, Calendar, MessageSquare, FileText, ExternalLink, X, Filter, ArrowUpDown, ArrowUp, ArrowDown, Trash2 } from "lucide-react";
 import type { ClientSale, SalesFilters, InsertClientSale, PaymentScheduleEntry, SortField, SortOrder } from "@shared/schema";
 import { STUDIOS, getStudioName } from "@shared/constants";
 import { Button } from "@/components/ui/button";
@@ -36,6 +36,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SaleFormDialog } from "@/components/SaleFormDialog";
 import { PaymentScheduleView } from "@/components/PaymentScheduleView";
@@ -54,6 +64,8 @@ export default function HomePage() {
   const [editingSale, setEditingSale] = useState<ClientSale | null>(null);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [selectedSale, setSelectedSale] = useState<ClientSale | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [saleToDelete, setSaleToDelete] = useState<ClientSale | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
   const { toast} = useToast();
@@ -181,6 +193,32 @@ export default function HomePage() {
     },
   });
 
+  // Мутация для удаления абонемента
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await apiRequest("DELETE", `/api/sales/${id}`);
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ predicate: (query) => 
+        Boolean(query.queryKey[0]?.toString().startsWith("/api/sales"))
+      });
+      setDeleteDialogOpen(false);
+      setSaleToDelete(null);
+      toast({
+        title: "Успешно",
+        description: "Абонемент успешно удалён",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Ошибка",
+        description: error.message || "Не удалось удалить абонемент",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleAddClick = () => {
     setEditingSale(null);
     setDialogOpen(true);
@@ -204,6 +242,17 @@ export default function HomePage() {
     setDetailsDialogOpen(true);
   };
 
+  const handleDeleteClick = (sale: ClientSale) => {
+    setSaleToDelete(sale);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (saleToDelete) {
+      deleteMutation.mutate(saleToDelete.id);
+    }
+  };
+
   const handleScheduleUpdate = (schedule: PaymentScheduleEntry[]) => {
     if (!selectedSale) return;
 
@@ -214,24 +263,25 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex flex-col h-screen bg-background">
       {/* Header */}
-      <header className="border-b bg-card">
+      <header className="border-b bg-card flex-shrink-0 shadow-sm">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 h-16 flex items-center justify-between">
-          <h1 className="text-3xl font-bold tracking-tight" data-testid="text-page-title">
+          <h1 className="text-2xl font-bold tracking-tight" data-testid="text-page-title">
             Дебиторка
           </h1>
-          <Button onClick={handleAddClick} data-testid="button-add-sale">
-            <Plus className="w-5 h-5 mr-2" />
+          <Button onClick={handleAddClick} size="sm" data-testid="button-add-sale">
+            <Plus className="w-4 h-4 mr-2" />
             Добавить абонемент
           </Button>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto p-6 lg:p-8">
+      <main className="flex-1 overflow-hidden">
+        <div className="max-w-7xl mx-auto h-full flex flex-col p-6 lg:p-8 gap-6">
         {/* Search and Filters */}
-        <Card className="p-4 mb-6">
+        <Card className="p-4 flex-shrink-0">
           <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
             {/* Search by phone */}
             <div className="flex-1 min-w-[200px] relative">
@@ -364,13 +414,13 @@ export default function HomePage() {
         </Card>
 
         {/* Table */}
-        <Card className="overflow-hidden">
-          <div className="overflow-x-auto">
+        <Card className="overflow-hidden flex-1 flex flex-col">
+          <div className="flex-1 overflow-auto">
             <Table className="text-sm">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="font-semibold w-[110px]">Телефон</TableHead>
-                  <TableHead className="font-semibold w-[150px]">
+              <TableHeader className="bg-muted/50">
+                <TableRow className="h-10">
+                  <TableHead className="font-semibold text-xs uppercase tracking-wider w-[110px]">Телефон</TableHead>
+                  <TableHead className="font-semibold text-xs uppercase tracking-wider w-[150px]">
                     <Button 
                       variant="ghost" 
                       size="sm" 
@@ -472,46 +522,46 @@ export default function HomePage() {
                   ))
                 ) : paginatedSales && paginatedSales.length > 0 ? (
                   paginatedSales.map((sale) => (
-                    <TableRow key={sale.id} className="hover-elevate" data-testid={`row-sale-${sale.id}`}>
-                      <TableCell data-testid={`text-phone-${sale.id}`}>
+                    <TableRow key={sale.id} className="hover-elevate h-14" data-testid={`row-sale-${sale.id}`}>
+                      <TableCell className="py-2" data-testid={`text-phone-${sale.id}`}>
                         {sale.client_phone}
                       </TableCell>
-                      <TableCell data-testid={`text-client-name-${sale.id}`}>
+                      <TableCell className="py-2" data-testid={`text-client-name-${sale.id}`}>
                         <span className={!sale.client_name ? "text-muted-foreground" : ""}>
                           {sale.client_name || "—"}
                         </span>
                       </TableCell>
-                      <TableCell data-testid={`text-master-name-${sale.id}`}>
+                      <TableCell className="py-2" data-testid={`text-master-name-${sale.id}`}>
                         <span className={!sale.master_name ? "text-muted-foreground" : ""}>
                           {sale.master_name || "—"}
                         </span>
                       </TableCell>
-                      <TableCell data-testid={`text-studio-${sale.id}`}>
+                      <TableCell className="py-2" data-testid={`text-studio-${sale.id}`}>
                         <span className={!sale.yclients_company_id ? "text-muted-foreground" : ""}>
                           {getStudioName(sale.yclients_company_id) || "—"}
                         </span>
                       </TableCell>
-                      <TableCell className="max-w-xs" data-testid={`text-title-${sale.id}`}>
+                      <TableCell className="max-w-xs py-2" data-testid={`text-title-${sale.id}`}>
                         <div className="line-clamp-2">
                           {sale.subscription_title || '—'}
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm" data-testid={`text-purchase-date-${sale.id}`}>
+                      <TableCell className="text-sm py-2" data-testid={`text-purchase-date-${sale.id}`}>
                         {formatDate(sale.purchase_date)}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="py-2">
                         <Badge
                           variant={getStatusVariant(sale.status)}
-                          className="rounded-full"
+                          className="rounded-full text-xs"
                           data-testid={`badge-status-${sale.id}`}
                         >
                           {getStatusLabel(sale.status)}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right tabular-nums" data-testid={`text-cost-${sale.id}`}>
+                      <TableCell className="text-right tabular-nums py-2" data-testid={`text-cost-${sale.id}`}>
                         {formatCurrency(sale.total_cost)}
                       </TableCell>
-                      <TableCell className="text-center" data-testid={`text-progress-${sale.id}`}>
+                      <TableCell className="text-center py-2" data-testid={`text-progress-${sale.id}`}>
                         {sale.is_installment && sale.total_payments ? (
                           <div className="flex flex-col gap-1 items-center">
                             <div className="w-full bg-muted rounded-full h-2 max-w-[100px]">
@@ -530,7 +580,7 @@ export default function HomePage() {
                           <span className="text-muted-foreground">—</span>
                         )}
                       </TableCell>
-                      <TableCell data-testid={`text-next-payment-${sale.id}`}>
+                      <TableCell className="py-2" data-testid={`text-next-payment-${sale.id}`}>
                         {sale.is_fully_paid || sale.status === 'completed' ? (
                           <span className="text-muted-foreground">—</span>
                         ) : (
@@ -545,14 +595,14 @@ export default function HomePage() {
                         )}
                       </TableCell>
                       <TableCell
-                        className={`text-center tabular-nums ${
+                        className={`text-center tabular-nums py-2 ${
                           sale.overdue_days > 0 ? 'bg-destructive/10 text-destructive font-semibold' : ''
                         }`}
                         data-testid={`text-overdue-${sale.id}`}
                       >
                         {sale.overdue_days > 0 ? `${sale.overdue_days} дн.` : '—'}
                       </TableCell>
-                      <TableCell className="max-w-xs" data-testid={`text-comments-${sale.id}`}>
+                      <TableCell className="max-w-xs py-2" data-testid={`text-comments-${sale.id}`}>
                         {sale.comments ? (
                           <div className="line-clamp-2 text-sm text-muted-foreground">
                             {sale.comments}
@@ -561,8 +611,8 @@ export default function HomePage() {
                           <span className="text-muted-foreground">—</span>
                         )}
                       </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex gap-1 justify-end">
+                      <TableCell className="text-right py-2">
+                        <div className="flex gap-1 justify-end flex-wrap">
                           {sale.pdf_url && (
                             <Button
                               variant="ghost"
@@ -589,8 +639,19 @@ export default function HomePage() {
                             size="icon"
                             onClick={() => handleEditClick(sale)}
                             data-testid={`button-edit-${sale.id}`}
+                            title="Редактировать"
                           >
                             <Pencil className="w-5 h-5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteClick(sale)}
+                            data-testid={`button-delete-${sale.id}`}
+                            title="Удалить"
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="w-5 h-5" />
                           </Button>
                         </div>
                       </TableCell>
@@ -613,7 +674,7 @@ export default function HomePage() {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between mt-4">
+          <div className="flex items-center justify-between flex-shrink-0">
             <div className="text-sm text-muted-foreground">
               Показано {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, allSales?.length || 0)} из {allSales?.length || 0}
             </div>
@@ -664,6 +725,7 @@ export default function HomePage() {
             </div>
           </div>
         )}
+        </div>
       </main>
 
       {/* Sale Form Dialog */}
@@ -748,6 +810,33 @@ export default function HomePage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent data-testid="dialog-delete-confirmation">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Подтвердите удаление</AlertDialogTitle>
+            <AlertDialogDescription>
+              Вы уверены, что хотите удалить абонемент {saleToDelete?.client_name ? `для клиента ${saleToDelete.client_name}` : 'этого клиента'}?
+              <br />
+              <span className="text-destructive font-medium">Это действие нельзя отменить.</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete" disabled={deleteMutation.isPending}>
+              Отмена
+            </AlertDialogCancel>
+            <AlertDialogAction
+              data-testid="button-confirm-delete"
+              onClick={handleConfirmDelete}
+              disabled={deleteMutation.isPending}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {deleteMutation.isPending ? "Удаление..." : "Удалить"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -40,13 +40,16 @@ export function DateRangePicker({
       return;
     }
 
+    // If both from and to are set, close the popover
     if (range.from && range.to) {
       onChange({
         from: format(range.from, "yyyy-MM-dd"),
         to: format(range.to, "yyyy-MM-dd"),
       });
       setOpen(false);
-    } else if (range.from) {
+    } else if (range.from && !range.to) {
+      // First click: set from and to to the same date but keep popover open
+      // This allows the user to either click a second date for a range or click outside to confirm single date
       onChange({
         from: format(range.from, "yyyy-MM-dd"),
         to: format(range.from, "yyyy-MM-dd"),

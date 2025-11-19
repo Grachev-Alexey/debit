@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { formatCurrency } from "@/lib/formatters";
+import { formatCurrency, formatDate } from "@/lib/formatters";
 import { CheckCircle2, AlertCircle, Clock, Edit } from "lucide-react";
 import { PaymentScheduleEditor } from "./PaymentScheduleEditor";
 
@@ -22,6 +22,27 @@ interface PaymentScheduleViewProps {
 export function PaymentScheduleView({ sale, onScheduleUpdate }: PaymentScheduleViewProps) {
   const [isEditing, setIsEditing] = useState(false);
   const paymentSchedule = sale.payment_schedule || [];
+  
+  // Отделяем первоначальный платёж от остальных
+  // Показываем в карточке только если это payment_number = 1 И есть planned_date
+  const initialPayment = paymentSchedule.find(p => {
+    return p.payment_number === 1 && p.planned_date !== undefined && p.planned_amount !== undefined;
+  });
+  
+  const remainingPayments = paymentSchedule.filter(p => {
+    const isLegacy = p.date !== undefined && p.amount !== undefined;
+    
+    // Если это payment_number = 1:
+    // - Если есть в initialPayment (с данными) - НЕ показываем в таблице
+    // - Если нет данных - показываем в таблице как fallback
+    if (p.payment_number === 1) {
+      return !initialPayment; // Показать в таблице только если не в карточке
+    }
+    
+    // Legacy записи всегда в таблице
+    // Остальные новые записи (payment_number > 1) тоже в таблице
+    return true;
+  });
 
   const isLegacyFormat = (payment: PaymentScheduleEntry): boolean => {
     return payment.date !== undefined && payment.amount !== undefined;
@@ -93,16 +114,73 @@ export function PaymentScheduleView({ sale, onScheduleUpdate }: PaymentScheduleV
     );
   }
 
+  const handleRegenerateSchedule = () => {
+    // TODO: Implement schedule regeneration logic
+    // This would recalculate all payment dates based on the purchase date
+    // and update the schedule accordingly
+    alert("Функция перегенерации графика будет добавлена в следующей версии");
+  };
+
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-wrap gap-2 justify-between items-center">
         <h3 className="text-lg font-semibold">График платежей</h3>
-        <Button onClick={() => setIsEditing(true)} variant="outline">
-          <Edit className="w-4 h-4 mr-2" />
-          Редактировать график
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={handleRegenerateSchedule} variant="outline" size="sm">
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Пересчитать график
+          </Button>
+          <Button onClick={() => setIsEditing(true)} variant="outline" size="sm">
+            <Edit className="w-4 h-4 mr-2" />
+            Редактировать
+          </Button>
+        </div>
       </div>
 
+      {/* Первоначальный платёж - отдельная карточка */}
+      {initialPayment && initialPayment.planned_date && initialPayment.planned_amount !== undefined && (
+        <div className="rounded-lg border bg-muted/30 p-4">
+          <h4 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">
+            Первоначальный взнос
+          </h4>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Статус</p>
+              {getStatusBadge(initialPayment.status)}
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">План. дата</p>
+              <p className="text-sm font-medium">
+                {formatDate(initialPayment.planned_date)}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">План. сумма</p>
+              <p className="text-sm font-medium">{formatCurrency(initialPayment.planned_amount)}</p>
+            </div>
+            {initialPayment.actual_date && (
+              <>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Факт. дата</p>
+                  <p className="text-sm font-medium">
+                    {formatDate(initialPayment.actual_date)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Факт. сумма</p>
+                  <p className="text-sm font-medium">
+                    {formatCurrency(initialPayment.actual_amount ?? initialPayment.planned_amount)}
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Оставшиеся платежи в таблице */}
       <div className="rounded-lg border overflow-hidden">
         <Table>
           <TableHeader>
@@ -117,7 +195,7 @@ export function PaymentScheduleView({ sale, onScheduleUpdate }: PaymentScheduleV
             </TableRow>
           </TableHeader>
           <TableBody>
-            {paymentSchedule.map((payment, index) => {
+            {remainingPayments.map((payment, index) => {
               const isLegacy = isLegacyFormat(payment);
               
               const paymentNumber = isLegacy ? index + 1 : payment.payment_number;
@@ -135,13 +213,17 @@ export function PaymentScheduleView({ sale, onScheduleUpdate }: PaymentScheduleV
                 <TableRow key={isLegacy ? index : payment.payment_number}>
                   <TableCell className="font-semibold">{paymentNumber}</TableCell>
                   <TableCell>{getStatusBadge(status)}</TableCell>
-                  <TableCell className="text-sm">{plannedDate}</TableCell>
+                  <TableCell className="text-sm">
+                    {formatDate(plannedDate)}
+                  </TableCell>
                   <TableCell className="font-medium">
                     {plannedAmount !== undefined ? formatCurrency(plannedAmount) : "—"}
                   </TableCell>
                   <TableCell className="text-sm">
                     {actualDate ? (
-                      <span className="text-green-700 dark:text-green-400">{actualDate}</span>
+                      <span className="text-green-700 dark:text-green-400">
+                        {formatDate(actualDate)}
+                      </span>
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}

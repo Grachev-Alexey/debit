@@ -8,6 +8,7 @@ export interface IStorage {
   getSaleById(id: number): Promise<ClientSale | undefined>;
   createSale(sale: InsertClientSale): Promise<ClientSale>;
   updateSale(id: number, sale: UpdateClientSale): Promise<ClientSale | undefined>;
+  deleteSale(id: number): Promise<boolean>;
 }
 
 export class MySQLStorage implements IStorage {
@@ -113,7 +114,9 @@ export class MySQLStorage implements IStorage {
     }
 
     // Фильтр по диапазону дат следующего платежа
+    // Исключаем полностью оплаченных клиентов при фильтрации по дате следующего платежа
     if (filters?.nextPaymentDateRange) {
+      query += ' AND is_fully_paid = FALSE';
       if (filters.nextPaymentDateRange.from) {
         query += ' AND next_payment_date >= ?';
         params.push(filters.nextPaymentDateRange.from);
@@ -334,6 +337,21 @@ export class MySQLStorage implements IStorage {
     } catch (error) {
       console.error('Ошибка при обновлении продажи:', error);
       throw new Error('Не удалось обновить продажу');
+    }
+  }
+
+  // Удалить продажу по ID
+  async deleteSale(id: number): Promise<boolean> {
+    try {
+      const [result] = await pool.execute<ResultSetHeader>(
+        'DELETE FROM client_sales_tracker WHERE id = ?',
+        [id]
+      );
+      
+      return result.affectedRows > 0;
+    } catch (error) {
+      console.error('Ошибка при удалении продажи:', error);
+      throw new Error('Не удалось удалить продажу');
     }
   }
 

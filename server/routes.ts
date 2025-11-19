@@ -131,6 +131,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // DELETE /api/sales/:id - Удалить продажу
+  app.delete("/api/sales/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Неверный ID продажи" });
+      }
+
+      const deleted = await storage.deleteSale(id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Продажа не найдена" });
+      }
+
+      res.status(204).send();
+    } catch (error) {
+      console.error("Ошибка при удалении продажи:", error);
+      res.status(500).json({ 
+        error: "Не удалось удалить продажу",
+        message: error instanceof Error ? error.message : "Неизвестная ошибка"
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
