@@ -52,6 +52,8 @@ export interface ClientSale {
   status: SaleStatus;
   is_underpaid: boolean;
   underpayment_amount: number;
+  is_frozen: boolean;
+  is_refund: boolean;
   comments: string | null;
   last_checked_at: Date | null;
   created_at: Date | null;
@@ -119,6 +121,8 @@ export const insertClientSaleSchema = z.object({
   status: z.enum(["active", "overdue", "underpaid", "paid_off", "completed"], { 
     message: "Статус должен быть: active, overdue, underpaid, paid_off или completed" 
   }).default("active"),
+  is_frozen: z.boolean().default(false),
+  is_refund: z.boolean().default(false),
   comments: z.string().nullable().optional(),
   pdf_url: z.string().nullable().optional(),
 });
@@ -148,6 +152,8 @@ export interface SalesFilters {
   masterName?: string;
   purchaseDateRange?: DateRange;
   nextPaymentDateRange?: DateRange;
+  isFrozen?: boolean;
+  isRefund?: boolean;
   sortBy?: SortField;
   sortOrder?: SortOrder;
 }

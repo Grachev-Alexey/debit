@@ -30,6 +30,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -90,11 +91,13 @@ export default function HomePage() {
     if (purchaseDateRange?.to) params.set("purchaseDateTo", purchaseDateRange.to);
     if (nextPaymentDateRange?.from) params.set("nextPaymentDateFrom", nextPaymentDateRange.from);
     if (nextPaymentDateRange?.to) params.set("nextPaymentDateTo", nextPaymentDateRange.to);
+    if (filters.isFrozen !== undefined) params.set("isFrozen", String(filters.isFrozen));
+    if (filters.isRefund !== undefined) params.set("isRefund", String(filters.isRefund));
     if (sortBy) params.set("sortBy", sortBy);
     if (sortOrder) params.set("sortOrder", sortOrder);
     const queryString = params.toString();
     return queryString ? `/api/sales?${queryString}` : "/api/sales";
-  }, [debouncedSearch, debouncedClientName, status, companyId, debouncedMasterName, purchaseDateRange, nextPaymentDateRange, sortBy, sortOrder]);
+  }, [debouncedSearch, debouncedClientName, status, companyId, debouncedMasterName, purchaseDateRange, nextPaymentDateRange, filters.isFrozen, filters.isRefund, sortBy, sortOrder]);
 
   const { data: allSales, isLoading } = useQuery<ClientSale[]>({
     queryKey: [apiUrl],
@@ -135,7 +138,7 @@ export default function HomePage() {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearch, debouncedClientName, filters.status, filters.companyId, debouncedMasterName, filters.purchaseDateRange, filters.nextPaymentDateRange, filters.sortBy, filters.sortOrder]);
+  }, [debouncedSearch, debouncedClientName, filters.status, filters.companyId, debouncedMasterName, filters.purchaseDateRange, filters.nextPaymentDateRange, filters.isFrozen, filters.isRefund, filters.sortBy, filters.sortOrder]);
 
   // Мутация для создания нового абонемента
   const createMutation = useMutation({
@@ -331,7 +334,7 @@ export default function HomePage() {
                 <Button variant="outline" data-testid="button-more-filters">
                   <Filter className="w-4 h-4 mr-2" />
                   Ещё фильтры
-                  {(filters.companyId || filters.masterName || filters.purchaseDateRange || filters.nextPaymentDateRange) && (
+                  {(filters.companyId || filters.masterName || filters.purchaseDateRange || filters.nextPaymentDateRange || filters.isFrozen || filters.isRefund) && (
                     <span className="ml-2 h-2 w-2 rounded-full bg-primary" />
                   )}
                 </Button>
@@ -393,13 +396,43 @@ export default function HomePage() {
                       placeholder="Выберите диапазон"
                     />
                   </div>
+
+                  {/* Frozen filter */}
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="filter-frozen"
+                      checked={filters.isFrozen === true}
+                      onCheckedChange={(checked) => 
+                        setFilters({ ...filters, isFrozen: checked ? true : undefined })
+                      }
+                      data-testid="checkbox-filter-frozen"
+                    />
+                    <label htmlFor="filter-frozen" className="text-sm font-medium cursor-pointer">
+                      Только замороженные
+                    </label>
+                  </div>
+
+                  {/* Refund filter */}
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="filter-refund"
+                      checked={filters.isRefund === true}
+                      onCheckedChange={(checked) => 
+                        setFilters({ ...filters, isRefund: checked ? true : undefined })
+                      }
+                      data-testid="checkbox-filter-refund"
+                    />
+                    <label htmlFor="filter-refund" className="text-sm font-medium cursor-pointer">
+                      Только с возвратом
+                    </label>
+                  </div>
                 </div>
               </PopoverContent>
             </Popover>
 
             {/* Clear filters button */}
             {(filters.search || filters.clientName || filters.status !== "all" || filters.companyId || filters.masterName || 
-              filters.purchaseDateRange || filters.nextPaymentDateRange) && (
+              filters.purchaseDateRange || filters.nextPaymentDateRange || filters.isFrozen || filters.isRefund) && (
               <Button
                 variant="outline"
                 size="sm"
@@ -415,8 +448,8 @@ export default function HomePage() {
 
         {/* Table */}
         <Card className="overflow-hidden flex-1 flex flex-col">
-          <div className="flex-1 overflow-auto">
-            <Table className="text-sm">
+          <div className="flex-1 overflow-auto overflow-x-auto">
+            <Table className="text-sm min-w-[1400px]">
               <TableHeader className="bg-muted/50">
                 <TableRow className="h-10">
                   <TableHead className="font-semibold text-xs uppercase tracking-wider w-[110px]">Телефон</TableHead>
@@ -496,6 +529,8 @@ export default function HomePage() {
                     </Button>
                   </TableHead>
                   <TableHead className="font-semibold text-center w-[80px]">Просроч.</TableHead>
+                  <TableHead className="font-semibold text-center w-[70px]">Зам.</TableHead>
+                  <TableHead className="font-semibold text-center w-[70px]">Возврат</TableHead>
                   <TableHead className="font-semibold max-w-[150px]">Коммент.</TableHead>
                   <TableHead className="font-semibold text-right w-[100px]">Действия</TableHead>
                 </TableRow>
@@ -516,13 +551,15 @@ export default function HomePage() {
                       <TableCell><Skeleton className="h-5 w-24 ml-auto" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-12 mx-auto" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-5 mx-auto" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-5 mx-auto" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                       <TableCell><Skeleton className="h-9 w-9 ml-auto" /></TableCell>
                     </TableRow>
                   ))
                 ) : paginatedSales && paginatedSales.length > 0 ? (
                   paginatedSales.map((sale) => (
-                    <TableRow key={sale.id} className="hover-elevate h-14" data-testid={`row-sale-${sale.id}`}>
+                    <TableRow key={sale.id} className="hover-elevate h-10" data-testid={`row-sale-${sale.id}`}>
                       <TableCell className="py-2" data-testid={`text-phone-${sale.id}`}>
                         {sale.client_phone}
                       </TableCell>
@@ -602,6 +639,30 @@ export default function HomePage() {
                       >
                         {sale.overdue_days > 0 ? `${sale.overdue_days} дн.` : '—'}
                       </TableCell>
+                      <TableCell className="text-center py-2">
+                        <Checkbox
+                          checked={sale.is_frozen}
+                          onCheckedChange={(checked) => {
+                            updateMutation.mutate({
+                              id: sale.id,
+                              data: { is_frozen: !!checked }
+                            });
+                          }}
+                          data-testid={`checkbox-frozen-${sale.id}`}
+                        />
+                      </TableCell>
+                      <TableCell className="text-center py-2">
+                        <Checkbox
+                          checked={sale.is_refund}
+                          onCheckedChange={(checked) => {
+                            updateMutation.mutate({
+                              id: sale.id,
+                              data: { is_refund: !!checked }
+                            });
+                          }}
+                          data-testid={`checkbox-refund-${sale.id}`}
+                        />
+                      </TableCell>
                       <TableCell className="max-w-xs py-2" data-testid={`text-comments-${sale.id}`}>
                         {sale.comments ? (
                           <div className="line-clamp-2 text-sm text-muted-foreground">
@@ -659,7 +720,7 @@ export default function HomePage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={13} className="text-center py-12 text-muted-foreground">
+                    <TableCell colSpan={15} className="text-center py-12 text-muted-foreground">
                       <div className="flex flex-col items-center gap-2">
                         <p className="text-lg font-medium">Абонементы не найдены</p>
                         <p className="text-sm">Попробуйте изменить фильтры или добавьте новый абонемент</p>

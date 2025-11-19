@@ -45,11 +45,17 @@ Preferred communication style: Simple, everyday language.
   - Search by master name
   - Filter by purchase date range
   - Filter by next payment date range
+  - Filter by frozen status ("Заморозка")
+  - Filter by refund status ("Возврат")
 - Modal-based forms for creating and editing sales records
 - Real-time data updates using React Query's invalidation patterns
 - Responsive table design with status badges and action buttons
+  - Compact row height (h-10) for better data density
+  - Horizontal scroll for wide tables (min-width: 1400px)
+  - Inline checkboxes for frozen and refund status
 - Display of client names, master names, and studio locations
 - Date and currency formatters for Russian locale (ru-RU)
+  - Empty date handling for payment schedules
 
 ### Backend Architecture
 
@@ -69,6 +75,8 @@ Preferred communication style: Simple, everyday language.
     - `masterName` - Master name search (LIKE)
     - `purchaseDateFrom` / `purchaseDateTo` - Purchase date range
     - `nextPaymentDateFrom` / `nextPaymentDateTo` - Next payment date range
+    - `isFrozen` - Frozen status filter (boolean)
+    - `isRefund` - Refund status filter (boolean)
   - `GET /api/sales/:id` - Get single sale by ID
   - `POST /api/sales` - Create new sale
   - `PATCH /api/sales/:id` - Update existing sale
@@ -106,6 +114,8 @@ Preferred communication style: Simple, everyday language.
 - `is_fully_paid` - Payment completion status
 - `status` - Enum: "active", "overdue", "underpaid", "paid_off", "completed"
 - `pdf_url` - Contract PDF URL (nullable, validation relaxed 2025-11-13)
+- `is_frozen` - Frozen status flag (added 2025-11-19)
+- `is_refund` - Refund status flag (added 2025-11-19)
 
 **Status Management**
 - Three primary states: active (ongoing payments), overdue (missed deadlines), paid (completed)

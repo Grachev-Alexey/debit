@@ -127,6 +127,18 @@ export class MySQLStorage implements IStorage {
       }
     }
 
+    // Фильтр по заморозке
+    if (filters?.isFrozen !== undefined) {
+      query += ' AND is_frozen = ?';
+      params.push(filters.isFrozen ? 1 : 0);
+    }
+
+    // Фильтр по возврату
+    if (filters?.isRefund !== undefined) {
+      query += ' AND is_refund = ?';
+      params.push(filters.isRefund ? 1 : 0);
+    }
+
     // Сортировка с whitelist для безопасности
     const allowedSortFields = {
       'purchase_date': 'purchase_date',
@@ -183,8 +195,8 @@ export class MySQLStorage implements IStorage {
         `INSERT INTO client_sales_tracker 
         (sale_id, amocrm_lead_id, yclients_client_id, yclients_company_id, client_phone, client_name, master_name, subscription_title, purchase_date, 
          total_cost, is_installment, payment_schedule, payment_history, total_payments, payments_made_count, next_payment_date, next_payment_amount, 
-         is_fully_paid, status, comments, pdf_url, overdue_days)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         is_fully_paid, status, is_frozen, is_refund, comments, pdf_url, overdue_days)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           sale.sale_id,
           sale.amocrm_lead_id,
@@ -205,6 +217,8 @@ export class MySQLStorage implements IStorage {
           sale.next_payment_amount || null,
           sale.is_fully_paid ? 1 : 0,
           sale.status,
+          sale.is_frozen ? 1 : 0,
+          sale.is_refund ? 1 : 0,
           sale.comments || null,
           sale.pdf_url || null,
           overdueDays,
@@ -312,6 +326,14 @@ export class MySQLStorage implements IStorage {
         updates.push('status = ?');
         params.push(sale.status);
       }
+      if (sale.is_frozen !== undefined) {
+        updates.push('is_frozen = ?');
+        params.push(sale.is_frozen ? 1 : 0);
+      }
+      if (sale.is_refund !== undefined) {
+        updates.push('is_refund = ?');
+        params.push(sale.is_refund ? 1 : 0);
+      }
       if (sale.comments !== undefined) {
         updates.push('comments = ?');
         params.push(sale.comments || null);
@@ -400,6 +422,8 @@ export class MySQLStorage implements IStorage {
       status: row.status,
       is_underpaid: Boolean(row.is_underpaid),
       underpayment_amount: parseFloat(row.underpayment_amount || '0'),
+      is_frozen: Boolean(row.is_frozen),
+      is_refund: Boolean(row.is_refund),
       comments: row.comments || null,
       last_checked_at: row.last_checked_at ? new Date(row.last_checked_at) : null,
       created_at: row.created_at ? new Date(row.created_at) : null,

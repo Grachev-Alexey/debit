@@ -6,7 +6,7 @@ export function formatCurrency(amount: number): string {
 }
 
 export function formatDate(date: Date | string | null | undefined): string {
-  if (!date) return '—';
+  if (!date || date === '') return '—';
   const d = typeof date === 'string' ? new Date(date) : date;
   // Проверяем на Invalid Date
   if (isNaN(d.getTime())) return '—';
