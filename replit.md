@@ -49,6 +49,15 @@ Preferred communication style: Simple, everyday language.
   - Filter by refund status ("Возврат")
 - Modal-based forms for creating and editing sales records
 - Real-time data updates using React Query's invalidation patterns
+- **Payment Schedule Management (2025-11-19):**
+  - View detailed payment schedules with planned and actual dates/amounts
+  - Edit payment schedule entries with inline editor
+  - **Automatic recalculation** - Regenerate payment dates based on purchase_date
+    - Preserves payment amounts and statuses
+    - Recalculates all planned_date fields with monthly intervals
+    - First payment = purchase_date, subsequent payments = purchase_date + N months
+  - Support for both new format (payment_number, planned_date, planned_amount) and legacy format (date, amount)
+  - Date formatting: Proper handling of Russian date format (DD.MM.YYYY) and ISO format (YYYY-MM-DD)
 - **Redesigned table interface (2025-11-19):**
   - **Grouped information architecture:**
     - Client block: Name (primary) + Phone (secondary)

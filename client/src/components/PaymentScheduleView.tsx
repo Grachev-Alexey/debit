@@ -115,10 +115,91 @@ export function PaymentScheduleView({ sale, onScheduleUpdate }: PaymentScheduleV
   }
 
   const handleRegenerateSchedule = () => {
-    // TODO: Implement schedule regeneration logic
-    // This would recalculate all payment dates based on the purchase date
-    // and update the schedule accordingly
-    alert("Функция перегенерации графика будет добавлена в следующей версии");
+    if (!paymentSchedule || paymentSchedule.length === 0) {
+      alert("График платежей пуст. Сначала создайте график.");
+      return;
+    }
+
+    // Функция для добавления месяцев к дате в русском формате DD.MM.YYYY
+    const addMonthsToDate = (dateStr: string, monthsToAdd: number): string => {
+      let d: Date;
+      
+      // Парсим дату из русского формата DD.MM.YYYY
+      if (dateStr.includes('.')) {
+        const parts = dateStr.split('.');
+        if (parts.length === 3) {
+          const [day, month, year] = parts;
+          d = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        } else {
+          d = new Date(dateStr);
+        }
+      } else {
+        d = new Date(dateStr);
+      }
+
+      // Добавляем месяцы
+      d.setMonth(d.getMonth() + monthsToAdd);
+
+      // Возвращаем в русском формате DD.MM.YYYY
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      
+      return `${day}.${month}.${year}`;
+    };
+
+    // Пересчитываем график платежей
+    const updatedSchedule = paymentSchedule.map((payment) => {
+      // Для первого платежа (payment_number === 1) используем дату покупки
+      // Для остальных - дата покупки + (payment_number - 1) месяцев
+      const monthsFromPurchase = payment.payment_number - 1;
+      
+      // Преобразуем purchase_date в строку формата DD.MM.YYYY
+      const purchaseDateStr = formatDate(sale.purchase_date);
+      
+      // Вычисляем новую planned_date
+      const newPlannedDate = addMonthsToDate(purchaseDateStr, monthsFromPurchase);
+
+      // Создаем новый объект, явно указывая только нужные поля
+      const updatedPayment: PaymentScheduleEntry = {
+        payment_number: payment.payment_number,
+        planned_date: newPlannedDate,
+        planned_amount: payment.planned_amount,
+      };
+
+      // Добавляем опциональные поля только если они определены
+      if (payment.status) {
+        updatedPayment.status = payment.status;
+      }
+      if (payment.actual_date) {
+        updatedPayment.actual_date = payment.actual_date;
+      }
+      if (payment.actual_amount !== undefined) {
+        updatedPayment.actual_amount = payment.actual_amount;
+      }
+      if (payment.difference !== undefined) {
+        updatedPayment.difference = payment.difference;
+      }
+      if (payment.discrepancy) {
+        updatedPayment.discrepancy = payment.discrepancy;
+      }
+
+      // Legacy поля (если они есть)
+      if (payment.date) {
+        updatedPayment.date = payment.date;
+      }
+      if (payment.amount !== undefined) {
+        updatedPayment.amount = payment.amount;
+      }
+      if (payment.description) {
+        updatedPayment.description = payment.description;
+      }
+
+      return updatedPayment;
+    });
+
+    // Сохраняем обновленный график
+    onScheduleUpdate(updatedSchedule);
   };
 
   return (

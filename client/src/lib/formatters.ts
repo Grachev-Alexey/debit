@@ -7,7 +7,24 @@ export function formatCurrency(amount: number): string {
 
 export function formatDate(date: Date | string | null | undefined): string {
   if (!date || date === '') return '—';
-  const d = typeof date === 'string' ? new Date(date) : date;
+  
+  let d: Date;
+  if (typeof date === 'string') {
+    // Проверяем, если дата уже в русском формате DD.MM.YYYY
+    if (date.includes('.')) {
+      const parts = date.split('.');
+      if (parts.length === 3) {
+        const [day, month, year] = parts;
+        // Возвращаем дату как есть, если она уже в нужном формате
+        return date;
+      }
+    }
+    // Для ISO формата или других форматов
+    d = new Date(date);
+  } else {
+    d = date;
+  }
+  
   // Проверяем на Invalid Date
   if (isNaN(d.getTime())) return '—';
   return d.toLocaleDateString('ru-RU', {

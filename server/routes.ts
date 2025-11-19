@@ -121,6 +121,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updatedSale);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        // Подробное логирование ошибок валидации
+        console.error("=== ОШИБКА ВАЛИДАЦИИ ===");
+        console.error("ID продажи:", req.params.id);
+        console.error("Тело запроса:", JSON.stringify(req.body, null, 2));
+        console.error("Ошибки валидации:", JSON.stringify(error.errors, null, 2));
+        console.error("========================");
+        
         return res.status(400).json({ 
           error: "Ошибка валидации данных",
           details: error.errors 
