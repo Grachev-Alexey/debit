@@ -49,10 +49,18 @@ Preferred communication style: Simple, everyday language.
   - Filter by refund status ("Возврат")
 - Modal-based forms for creating and editing sales records
 - Real-time data updates using React Query's invalidation patterns
-- Responsive table design with status badges and action buttons
-  - Compact row height (h-10) for better data density
-  - Horizontal scroll for wide tables (min-width: 1400px)
-  - Inline checkboxes for frozen and refund status
+- **Redesigned table interface (2025-11-19):**
+  - **Grouped information architecture:**
+    - Client block: Name (primary) + Phone (secondary)
+    - Subscription block: Title + Purchase date + Master + Studio
+    - Payment block: Total cost + Installment progress (conditional) + Next payment (conditional)
+    - Status block: Status badge
+    - Additional info block: Overdue badge + Frozen badge + Refund badge + Comment indicator (all conditional)
+  - **Visual hierarchy:** Primary information bold/default, secondary information muted/smaller
+  - **Smart visibility:** Installment progress and next payment hidden for fully paid subscriptions
+  - **Consolidated actions:** All row actions (view schedule, edit, contract, freeze/unfreeze, refund/cancel refund, delete) accessible via dropdown menu (three dots)
+  - **No horizontal scrolling:** Table fits viewport width without scrolling
+  - **Compact and clean:** Better use of space with grouped blocks instead of many columns
 - Display of client names, master names, and studio locations
 - Date and currency formatters for Russian locale (ru-RU)
   - Empty date handling for payment schedules

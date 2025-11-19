@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useDebouncedValue } from "@/hooks/use-debounce";
-import { Plus, Search, Pencil, ChevronLeft, ChevronRight, Calendar, MessageSquare, FileText, ExternalLink, X, Filter, ArrowUpDown, ArrowUp, ArrowDown, Trash2 } from "lucide-react";
+import { Plus, Search, Pencil, ChevronLeft, ChevronRight, Calendar, MessageSquare, FileText, ExternalLink, X, Filter, ArrowUpDown, ArrowUp, ArrowDown, Trash2, MoreVertical, Snowflake, RotateCcw } from "lucide-react";
 import type { ClientSale, SalesFilters, InsertClientSale, PaymentScheduleEntry, SortField, SortOrder } from "@shared/schema";
 import { STUDIOS, getStudioName } from "@shared/constants";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import {
   Table,
@@ -448,12 +455,11 @@ export default function HomePage() {
 
         {/* Table */}
         <Card className="overflow-hidden flex-1 flex flex-col">
-          <div className="flex-1 overflow-auto overflow-x-auto">
-            <Table className="text-sm min-w-[1400px]">
+          <div className="flex-1 overflow-auto">
+            <Table className="text-sm">
               <TableHeader className="bg-muted/50">
                 <TableRow className="h-10">
-                  <TableHead className="font-semibold text-xs uppercase tracking-wider w-[110px]">Телефон</TableHead>
-                  <TableHead className="font-semibold text-xs uppercase tracking-wider w-[150px]">
+                  <TableHead className="font-semibold text-xs uppercase tracking-wider w-[250px]">
                     <Button 
                       variant="ghost" 
                       size="sm" 
@@ -465,74 +471,11 @@ export default function HomePage() {
                       {getSortIcon("client_name")}
                     </Button>
                   </TableHead>
-                  <TableHead className="font-semibold w-[130px]">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => handleSort("master_name")}
-                      className="font-semibold p-0 h-auto hover:bg-transparent"
-                      data-testid="button-sort-master-name"
-                    >
-                      Мастер
-                      {getSortIcon("master_name")}
-                    </Button>
-                  </TableHead>
-                  <TableHead className="font-semibold w-[100px]">Студия</TableHead>
-                  <TableHead className="font-semibold max-w-[200px]">Название</TableHead>
-                  <TableHead className="font-semibold w-[100px]">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => handleSort("purchase_date")}
-                      className="font-semibold p-0 h-auto hover:bg-transparent"
-                      data-testid="button-sort-purchase-date"
-                    >
-                      Дата
-                      {getSortIcon("purchase_date")}
-                    </Button>
-                  </TableHead>
-                  <TableHead className="font-semibold w-[100px]">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => handleSort("status")}
-                      className="font-semibold p-0 h-auto hover:bg-transparent"
-                      data-testid="button-sort-status"
-                    >
-                      Статус
-                      {getSortIcon("status")}
-                    </Button>
-                  </TableHead>
-                  <TableHead className="font-semibold text-right w-[90px]">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => handleSort("total_cost")}
-                      className="font-semibold p-0 h-auto hover:bg-transparent"
-                      data-testid="button-sort-total-cost"
-                    >
-                      Сумма
-                      {getSortIcon("total_cost")}
-                    </Button>
-                  </TableHead>
-                  <TableHead className="font-semibold text-center w-[110px]">Прогресс</TableHead>
-                  <TableHead className="font-semibold w-[120px]">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => handleSort("next_payment_date")}
-                      className="font-semibold p-0 h-auto hover:bg-transparent"
-                      data-testid="button-sort-next-payment"
-                    >
-                      След. пл.
-                      {getSortIcon("next_payment_date")}
-                    </Button>
-                  </TableHead>
-                  <TableHead className="font-semibold text-center w-[80px]">Просроч.</TableHead>
-                  <TableHead className="font-semibold text-center w-[70px]">Зам.</TableHead>
-                  <TableHead className="font-semibold text-center w-[70px]">Возврат</TableHead>
-                  <TableHead className="font-semibold max-w-[150px]">Коммент.</TableHead>
-                  <TableHead className="font-semibold text-right w-[100px]">Действия</TableHead>
+                  <TableHead className="font-semibold text-xs uppercase tracking-wider">Абонемент</TableHead>
+                  <TableHead className="font-semibold text-xs uppercase tracking-wider w-[300px]">Оплата</TableHead>
+                  <TableHead className="font-semibold text-xs uppercase tracking-wider w-[120px]">Статус</TableHead>
+                  <TableHead className="font-semibold text-xs uppercase tracking-wider w-[180px]">Доп. инфо</TableHead>
+                  <TableHead className="text-right w-[60px]"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -540,53 +483,98 @@ export default function HomePage() {
                   // Loading skeleton
                   Array.from({ length: 5 }).map((_, i) => (
                     <TableRow key={i}>
-                      <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-32" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-28" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-32" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <Skeleton className="h-5 w-32" />
+                          <Skeleton className="h-4 w-24" />
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <Skeleton className="h-5 w-40" />
+                          <Skeleton className="h-4 w-28" />
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <Skeleton className="h-5 w-32" />
+                          <Skeleton className="h-4 w-24" />
+                        </div>
+                      </TableCell>
                       <TableCell><Skeleton className="h-6 w-20" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-24 ml-auto" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-12 mx-auto" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-5 mx-auto" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-5 mx-auto" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                      <TableCell><Skeleton className="h-9 w-9 ml-auto" /></TableCell>
+                      <TableCell className="text-right"><Skeleton className="h-9 w-9 ml-auto" /></TableCell>
                     </TableRow>
                   ))
                 ) : paginatedSales && paginatedSales.length > 0 ? (
                   paginatedSales.map((sale) => (
-                    <TableRow key={sale.id} className="hover-elevate h-10" data-testid={`row-sale-${sale.id}`}>
-                      <TableCell className="py-2" data-testid={`text-phone-${sale.id}`}>
-                        {sale.client_phone}
-                      </TableCell>
-                      <TableCell className="py-2" data-testid={`text-client-name-${sale.id}`}>
-                        <span className={!sale.client_name ? "text-muted-foreground" : ""}>
-                          {sale.client_name || "—"}
-                        </span>
-                      </TableCell>
-                      <TableCell className="py-2" data-testid={`text-master-name-${sale.id}`}>
-                        <span className={!sale.master_name ? "text-muted-foreground" : ""}>
-                          {sale.master_name || "—"}
-                        </span>
-                      </TableCell>
-                      <TableCell className="py-2" data-testid={`text-studio-${sale.id}`}>
-                        <span className={!sale.yclients_company_id ? "text-muted-foreground" : ""}>
-                          {getStudioName(sale.yclients_company_id) || "—"}
-                        </span>
-                      </TableCell>
-                      <TableCell className="max-w-xs py-2" data-testid={`text-title-${sale.id}`}>
-                        <div className="line-clamp-2">
-                          {sale.subscription_title || '—'}
+                    <TableRow key={sale.id} className="hover-elevate" data-testid={`row-sale-${sale.id}`}>
+                      {/* Клиент */}
+                      <TableCell className="py-3" data-testid={`text-client-${sale.id}`}>
+                        <div className="space-y-0.5">
+                          <div className="font-medium" data-testid={`text-client-name-${sale.id}`}>
+                            {sale.client_name || <span className="text-muted-foreground">Имя не указано</span>}
+                          </div>
+                          <div className="text-sm text-muted-foreground" data-testid={`text-phone-${sale.id}`}>
+                            {sale.client_phone}
+                          </div>
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm py-2" data-testid={`text-purchase-date-${sale.id}`}>
-                        {formatDate(sale.purchase_date)}
+
+                      {/* Абонемент */}
+                      <TableCell className="py-3" data-testid={`text-subscription-${sale.id}`}>
+                        <div className="space-y-0.5">
+                          <div className="font-medium line-clamp-1" data-testid={`text-title-${sale.id}`}>
+                            {sale.subscription_title || '—'}
+                          </div>
+                          <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                            <span data-testid={`text-purchase-date-${sale.id}`}>{formatDate(sale.purchase_date)}</span>
+                            {sale.master_name && (
+                              <span data-testid={`text-master-name-${sale.id}`}>{sale.master_name}</span>
+                            )}
+                            {sale.yclients_company_id && (
+                              <span data-testid={`text-studio-${sale.id}`}>{getStudioName(sale.yclients_company_id)}</span>
+                            )}
+                          </div>
+                        </div>
                       </TableCell>
-                      <TableCell className="py-2">
+
+                      {/* Оплата */}
+                      <TableCell className="py-3" data-testid={`text-payment-${sale.id}`}>
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <div className="font-semibold tabular-nums" data-testid={`text-cost-${sale.id}`}>
+                              {formatCurrency(sale.total_cost)}
+                            </div>
+                          </div>
+                          {sale.is_installment && sale.total_payments && !sale.is_fully_paid && sale.status !== 'completed' ? (
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <div className="flex-1 bg-muted rounded-full h-1.5 max-w-[120px]">
+                                  <div 
+                                    className="bg-primary h-1.5 rounded-full transition-all" 
+                                    style={{ 
+                                      width: `${Math.min(100, ((sale.payments_made_count || 0) / sale.total_payments) * 100)}%` 
+                                    }}
+                                  />
+                                </div>
+                                <span className="text-xs text-muted-foreground whitespace-nowrap" data-testid={`text-progress-${sale.id}`}>
+                                  {sale.payments_made_count || 0}/{sale.total_payments}
+                                </span>
+                              </div>
+                              {sale.next_payment_date && (
+                                <div className="text-xs text-muted-foreground" data-testid={`text-next-payment-${sale.id}`}>
+                                  След: {formatDate(sale.next_payment_date)}
+                                  {sale.next_payment_amount && ` • ${formatCurrency(sale.next_payment_amount)}`}
+                                </div>
+                              )}
+                            </div>
+                          ) : null}
+                        </div>
+                      </TableCell>
+
+                      {/* Статус */}
+                      <TableCell className="py-3">
                         <Badge
                           variant={getStatusVariant(sale.status)}
                           className="rounded-full text-xs"
@@ -595,132 +583,114 @@ export default function HomePage() {
                           {getStatusLabel(sale.status)}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right tabular-nums py-2" data-testid={`text-cost-${sale.id}`}>
-                        {formatCurrency(sale.total_cost)}
+
+                      {/* Дополнительная информация */}
+                      <TableCell className="py-3" data-testid={`text-additional-${sale.id}`}>
+                        <div className="flex flex-wrap gap-1.5">
+                          {sale.overdue_days > 0 && (
+                            <Badge variant="destructive" className="text-xs" data-testid={`badge-overdue-${sale.id}`}>
+                              Просрочка {sale.overdue_days} дн.
+                            </Badge>
+                          )}
+                          {sale.is_frozen && (
+                            <Badge variant="outline" className="text-xs" data-testid={`badge-frozen-${sale.id}`}>
+                              <Snowflake className="w-3 h-3 mr-1" />
+                              Заморожен
+                            </Badge>
+                          )}
+                          {sale.is_refund && (
+                            <Badge variant="outline" className="text-xs" data-testid={`badge-refund-${sale.id}`}>
+                              <RotateCcw className="w-3 h-3 mr-1" />
+                              Возврат
+                            </Badge>
+                          )}
+                          {sale.comments && (
+                            <Badge variant="outline" className="text-xs" data-testid={`badge-comment-${sale.id}`}>
+                              <MessageSquare className="w-3 h-3 mr-1" />
+                              Есть комментарий
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
-                      <TableCell className="text-center py-2" data-testid={`text-progress-${sale.id}`}>
-                        {sale.is_installment && sale.total_payments ? (
-                          <div className="flex flex-col gap-1 items-center">
-                            <div className="w-full bg-muted rounded-full h-2 max-w-[100px]">
-                              <div 
-                                className="bg-primary h-2 rounded-full transition-all" 
-                                style={{ 
-                                  width: `${Math.min(100, ((sale.payments_made_count || 0) / sale.total_payments) * 100)}%` 
-                                }}
-                              />
-                            </div>
-                            <span className="text-xs text-muted-foreground">
-                              {sale.payments_made_count || 0} из {sale.total_payments}
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="py-2" data-testid={`text-next-payment-${sale.id}`}>
-                        {sale.is_fully_paid || sale.status === 'completed' ? (
-                          <span className="text-muted-foreground">—</span>
-                        ) : (
-                          <div className="flex flex-col gap-0.5">
-                            <span className="text-sm">{formatDate(sale.next_payment_date)}</span>
-                            {sale.next_payment_amount && (
-                              <span className="text-xs text-muted-foreground">
-                                {formatCurrency(sale.next_payment_amount)}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell
-                        className={`text-center tabular-nums py-2 ${
-                          sale.overdue_days > 0 ? 'bg-destructive/10 text-destructive font-semibold' : ''
-                        }`}
-                        data-testid={`text-overdue-${sale.id}`}
-                      >
-                        {sale.overdue_days > 0 ? `${sale.overdue_days} дн.` : '—'}
-                      </TableCell>
-                      <TableCell className="text-center py-2">
-                        <Checkbox
-                          checked={sale.is_frozen}
-                          onCheckedChange={(checked) => {
-                            updateMutation.mutate({
-                              id: sale.id,
-                              data: { is_frozen: !!checked }
-                            });
-                          }}
-                          data-testid={`checkbox-frozen-${sale.id}`}
-                        />
-                      </TableCell>
-                      <TableCell className="text-center py-2">
-                        <Checkbox
-                          checked={sale.is_refund}
-                          onCheckedChange={(checked) => {
-                            updateMutation.mutate({
-                              id: sale.id,
-                              data: { is_refund: !!checked }
-                            });
-                          }}
-                          data-testid={`checkbox-refund-${sale.id}`}
-                        />
-                      </TableCell>
-                      <TableCell className="max-w-xs py-2" data-testid={`text-comments-${sale.id}`}>
-                        {sale.comments ? (
-                          <div className="line-clamp-2 text-sm text-muted-foreground">
-                            {sale.comments}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right py-2">
-                        <div className="flex gap-1 justify-end flex-wrap">
-                          {sale.pdf_url && (
+
+                      {/* Действия (Dropdown меню) */}
+                      <TableCell className="text-right py-3">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => window.open(sale.pdf_url!, '_blank')}
-                              data-testid={`button-view-contract-${sale.id}`}
-                              title="Открыть договор"
+                              data-testid={`button-actions-${sale.id}`}
                             >
-                              <FileText className="w-5 h-5" />
+                              <MoreVertical className="w-4 h-4" />
                             </Button>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleViewDetails(sale)}
-                            data-testid={`button-view-details-${sale.id}`}
-                            title={sale.payment_schedule && sale.payment_schedule.length > 0 ? "График платежей" : "Создать график платежей"}
-                            className={!sale.payment_schedule || sale.payment_schedule.length === 0 ? "text-muted-foreground" : ""}
-                          >
-                            <Calendar className="w-5 h-5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEditClick(sale)}
-                            data-testid={`button-edit-${sale.id}`}
-                            title="Редактировать"
-                          >
-                            <Pencil className="w-5 h-5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteClick(sale)}
-                            data-testid={`button-delete-${sale.id}`}
-                            title="Удалить"
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="w-5 h-5" />
-                          </Button>
-                        </div>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => handleViewDetails(sale)}
+                              data-testid={`button-view-details-${sale.id}`}
+                            >
+                              <Calendar className="w-4 h-4 mr-2" />
+                              График платежей
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleEditClick(sale)}
+                              data-testid={`button-edit-${sale.id}`}
+                            >
+                              <Pencil className="w-4 h-4 mr-2" />
+                              Редактировать
+                            </DropdownMenuItem>
+                            {sale.pdf_url && (
+                              <DropdownMenuItem
+                                onClick={() => window.open(sale.pdf_url!, '_blank')}
+                                data-testid={`button-view-contract-${sale.id}`}
+                              >
+                                <FileText className="w-4 h-4 mr-2" />
+                                Открыть договор
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => {
+                                updateMutation.mutate({
+                                  id: sale.id,
+                                  data: { is_frozen: !sale.is_frozen }
+                                });
+                              }}
+                              data-testid={`button-toggle-frozen-${sale.id}`}
+                            >
+                              <Snowflake className="w-4 h-4 mr-2" />
+                              {sale.is_frozen ? 'Разморозить' : 'Заморозить'}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                updateMutation.mutate({
+                                  id: sale.id,
+                                  data: { is_refund: !sale.is_refund }
+                                });
+                              }}
+                              data-testid={`button-toggle-refund-${sale.id}`}
+                            >
+                              <RotateCcw className="w-4 h-4 mr-2" />
+                              {sale.is_refund ? 'Отменить возврат' : 'Отметить возврат'}
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => handleDeleteClick(sale)}
+                              data-testid={`button-delete-${sale.id}`}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Удалить
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={15} className="text-center py-12 text-muted-foreground">
+                    <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
                       <div className="flex flex-col items-center gap-2">
                         <p className="text-lg font-medium">Абонементы не найдены</p>
                         <p className="text-sm">Попробуйте изменить фильтры или добавьте новый абонемент</p>
