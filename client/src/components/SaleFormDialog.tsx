@@ -67,6 +67,8 @@ export function SaleFormDialog({
       is_fully_paid: false,
       status: "active",
       summa_vozvrata: null,
+      booked: false,
+      date_booked: null,
       comments: null,
       pdf_url: null,
     },
@@ -93,6 +95,8 @@ export function SaleFormDialog({
         is_fully_paid: editingSale.is_fully_paid,
         status: editingSale.status,
         summa_vozvrata: editingSale.summa_vozvrata,
+        booked: editingSale.booked,
+        date_booked: editingSale.date_booked ? formatDateForInput(editingSale.date_booked) : null,
         comments: editingSale.comments || "",
         pdf_url: editingSale.pdf_url || "",
       });
@@ -116,6 +120,8 @@ export function SaleFormDialog({
         is_fully_paid: false,
         status: "active",
         summa_vozvrata: null,
+        booked: false,
+        date_booked: null,
         comments: null,
         pdf_url: null,
       });
@@ -392,6 +398,27 @@ export function SaleFormDialog({
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
+                name="is_frozen"
+                render={({ field }) => (
+                  <FormItem className="flex items-center space-x-2 space-y-0">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        data-testid="checkbox-is-frozen"
+                      />
+                    </FormControl>
+                    <FormLabel className="!mt-0 font-normal cursor-pointer">
+                      Заморожен
+                    </FormLabel>
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
                 name="is_installment"
                 render={({ field }) => (
                   <FormItem className="flex items-center space-x-2 space-y-0">
@@ -530,6 +557,46 @@ export function SaleFormDialog({
                         {...field}
                         value={field.value || ""}
                         onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : null)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="booked"
+                render={({ field }) => (
+                  <FormItem className="flex items-center space-x-2 space-y-0">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        data-testid="checkbox-booked"
+                      />
+                    </FormControl>
+                    <FormLabel className="!mt-0 font-normal cursor-pointer">
+                      Записан
+                    </FormLabel>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="date_booked"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Дата записи</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="date"
+                        data-testid="input-date-booked"
+                        {...field}
+                        value={field.value || ""}
                       />
                     </FormControl>
                     <FormMessage />

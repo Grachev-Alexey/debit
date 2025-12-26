@@ -454,6 +454,21 @@ export default function HomePage() {
                       Только с возвратом
                     </label>
                   </div>
+
+                  {/* Booked filter */}
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="filter-booked"
+                      checked={filters.isBooked === true}
+                      onCheckedChange={(checked) => 
+                        setFilters({ ...filters, isBooked: checked ? true : undefined })
+                      }
+                      data-testid="checkbox-filter-booked"
+                    />
+                    <label htmlFor="filter-booked" className="text-sm font-medium cursor-pointer">
+                      Только записанные
+                    </label>
+                  </div>
                 </div>
               </PopoverContent>
             </Popover>
@@ -621,7 +636,7 @@ export default function HomePage() {
                           )}
                           {sale.booked && (
                             <Badge variant="outline" className="text-xs" data-testid={`badge-booked-${sale.id}`}>
-                              ✓ Записан
+                              ✓ Записан {sale.date_booked ? `(${formatDate(sale.date_booked)})` : ""}
                             </Badge>
                           )}
                           {sale.is_refund && (

@@ -26,7 +26,7 @@ outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "NODE_ENV=development npm run dev"
+args = "npm run dev"
 waitForPort = 5000
 
 [[ports]]
@@ -35,5 +35,10 @@ externalPort = 80
 
 [deployment]
 deploymentTarget = "autoscale"
-run = ["npm", "start"]
+run = ["node", "./dist/index.cjs"]
 build = ["npm", "run", "build"]
+
+[userenv]
+
+[userenv.development]
+NODE_ENV = "development"
