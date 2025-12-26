@@ -139,6 +139,12 @@ export class MySQLStorage implements IStorage {
       params.push(filters.isRefund ? 1 : 0);
     }
 
+    // Фильтр по записи клиента
+    if (filters?.isBooked !== undefined) {
+      query += ' AND booked = ?';
+      params.push(filters.isBooked ? 1 : 0);
+    }
+
     // Сортировка с whitelist для безопасности
     const allowedSortFields = {
       'purchase_date': 'purchase_date',
@@ -342,6 +348,18 @@ export class MySQLStorage implements IStorage {
         updates.push('pdf_url = ?');
         params.push(sale.pdf_url || null);
       }
+      if (sale.booked !== undefined) {
+        updates.push('booked = ?');
+        params.push(sale.booked ? 1 : 0);
+      }
+      if (sale.date_booked !== undefined) {
+        updates.push('date_booked = ?');
+        params.push(sale.date_booked || null);
+      }
+      if (sale.summa_vozvrata !== undefined) {
+        updates.push('summa_vozvrata = ?');
+        params.push(sale.summa_vozvrata || null);
+      }
 
       if (updates.length === 0) {
         // Нет полей для обновления
@@ -429,6 +447,9 @@ export class MySQLStorage implements IStorage {
       created_at: row.created_at ? new Date(row.created_at) : null,
       updated_at: row.updated_at ? new Date(row.updated_at) : null,
       pdf_url: row.pdf_url || null,
+      booked: Boolean(row.booked),
+      date_booked: row.date_booked ? new Date(row.date_booked) : null,
+      summa_vozvrata: row.summa_vozvrata ? parseFloat(row.summa_vozvrata) : null,
     };
   }
 }

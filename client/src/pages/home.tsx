@@ -44,6 +44,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { RefundDialog } from "@/components/RefundDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -74,6 +75,8 @@ export default function HomePage() {
   const [selectedSale, setSelectedSale] = useState<ClientSale | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [saleToDelete, setSaleToDelete] = useState<ClientSale | null>(null);
+  const [refundDialogOpen, setRefundDialogOpen] = useState(false);
+  const [refundSale, setRefundSale] = useState<ClientSale | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
   const { toast} = useToast();
@@ -100,11 +103,12 @@ export default function HomePage() {
     if (nextPaymentDateRange?.to) params.set("nextPaymentDateTo", nextPaymentDateRange.to);
     if (filters.isFrozen !== undefined) params.set("isFrozen", String(filters.isFrozen));
     if (filters.isRefund !== undefined) params.set("isRefund", String(filters.isRefund));
+    if (filters.isBooked !== undefined) params.set("isBooked", String(filters.isBooked));
     if (sortBy) params.set("sortBy", sortBy);
     if (sortOrder) params.set("sortOrder", sortOrder);
     const queryString = params.toString();
     return queryString ? `/api/sales?${queryString}` : "/api/sales";
-  }, [debouncedSearch, debouncedClientName, status, companyId, debouncedMasterName, purchaseDateRange, nextPaymentDateRange, filters.isFrozen, filters.isRefund, sortBy, sortOrder]);
+  }, [debouncedSearch, debouncedClientName, status, companyId, debouncedMasterName, purchaseDateRange, nextPaymentDateRange, filters.isFrozen, filters.isRefund, filters.isBooked, sortBy, sortOrder]);
 
   const { data: allSales, isLoading } = useQuery<ClientSale[]>({
     queryKey: [apiUrl],
@@ -145,7 +149,7 @@ export default function HomePage() {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearch, debouncedClientName, filters.status, filters.companyId, debouncedMasterName, filters.purchaseDateRange, filters.nextPaymentDateRange, filters.isFrozen, filters.isRefund, filters.sortBy, filters.sortOrder]);
+  }, [debouncedSearch, debouncedClientName, filters.status, filters.companyId, debouncedMasterName, filters.purchaseDateRange, filters.nextPaymentDateRange, filters.isFrozen, filters.isRefund, filters.isBooked, filters.sortBy, filters.sortOrder]);
 
   // Мутация для создания нового абонемента
   const createMutation = useMutation({
@@ -263,13 +267,30 @@ export default function HomePage() {
     }
   };
 
-  const handleScheduleUpdate = (schedule: PaymentScheduleEntry[]) => {
+  const handleScheduleUpdate = (schedule: PaymentScheduleEntry[], totalPayments?: number) => {
     if (!selectedSale) return;
 
     updateMutation.mutate({
       id: selectedSale.id,
-      data: { payment_schedule: schedule }
+      data: { 
+        payment_schedule: schedule,
+        ...(totalPayments !== undefined && { total_payments: totalPayments })
+      }
     });
+  };
+
+  const handleRefundConfirm = (amount: number) => {
+    if (refundSale) {
+      updateMutation.mutate({
+        id: refundSale.id,
+        data: { 
+          is_refund: true,
+          summa_vozvrata: amount
+        }
+      });
+      setRefundDialogOpen(false);
+      setRefundSale(null);
+    }
   };
 
   return (
@@ -598,6 +619,11 @@ export default function HomePage() {
                               Заморожен
                             </Badge>
                           )}
+                          {sale.booked && (
+                            <Badge variant="outline" className="text-xs" data-testid={`badge-booked-${sale.id}`}>
+                              ✓ Записан
+                            </Badge>
+                          )}
                           {sale.is_refund && (
                             <Badge variant="outline" className="text-xs" data-testid={`badge-refund-${sale.id}`}>
                               <RotateCcw className="w-3 h-3 mr-1" />
@@ -605,9 +631,9 @@ export default function HomePage() {
                             </Badge>
                           )}
                           {sale.comments && (
-                            <Badge variant="outline" className="text-xs" data-testid={`badge-comment-${sale.id}`}>
-                              <MessageSquare className="w-3 h-3 mr-1" />
-                              Есть комментарий
+                            <Badge variant="outline" className="text-xs max-w-xs" title={sale.comments} data-testid={`badge-comment-${sale.id}`}>
+                              <MessageSquare className="w-3 h-3 mr-1 flex-shrink-0" />
+                              <span className="truncate text-left">{sale.comments}</span>
                             </Badge>
                           )}
                         </div>
@@ -664,15 +690,20 @@ export default function HomePage() {
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => {
-                                updateMutation.mutate({
-                                  id: sale.id,
-                                  data: { is_refund: !sale.is_refund }
-                                });
+                                if (sale.is_refund) {
+                                  updateMutation.mutate({
+                                    id: sale.id,
+                                    data: { is_refund: false }
+                                  });
+                                } else {
+                                  setRefundSale(sale);
+                                  setRefundDialogOpen(true);
+                                }
                               }}
                               data-testid={`button-toggle-refund-${sale.id}`}
                             >
                               <RotateCcw className="w-4 h-4 mr-2" />
-                              {sale.is_refund ? 'Отменить возврат' : 'Отметить возврат'}
+                              {sale.is_refund ? 'Отменить возврат' : 'Возврат'}
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
@@ -841,6 +872,14 @@ export default function HomePage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Refund Dialog */}
+      <RefundDialog
+        open={refundDialogOpen}
+        onOpenChange={setRefundDialogOpen}
+        onConfirm={handleRefundConfirm}
+        currentAmount={refundSale?.summa_vozvrata}
+      />
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

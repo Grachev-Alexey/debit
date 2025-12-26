@@ -20,6 +20,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         nextPaymentDateTo,
         isFrozen,
         isRefund,
+        isBooked,
         sortBy,
         sortOrder
       } = req.query;
@@ -40,6 +41,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } : undefined,
         isFrozen: isFrozen === 'true' ? true : isFrozen === 'false' ? false : undefined,
         isRefund: isRefund === 'true' ? true : isRefund === 'false' ? false : undefined,
+        isBooked: isBooked === 'true' ? true : isBooked === 'false' ? false : undefined,
         sortBy: sortBy ? String(sortBy) as any : undefined,
         sortOrder: sortOrder ? String(sortOrder) as any : undefined,
       };

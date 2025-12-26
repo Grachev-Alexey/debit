@@ -54,6 +54,9 @@ export interface ClientSale {
   underpayment_amount: number;
   is_frozen: boolean;
   is_refund: boolean;
+  summa_vozvrata: number | null;
+  booked: boolean;
+  date_booked: Date | null;
   comments: string | null;
   last_checked_at: Date | null;
   created_at: Date | null;
@@ -123,6 +126,12 @@ export const insertClientSaleSchema = z.object({
   }).default("active"),
   is_frozen: z.boolean().default(false),
   is_refund: z.boolean().default(false),
+  summa_vozvrata: z.preprocess(
+    (val) => val === null || val === "" || val === undefined ? null : Number(val),
+    z.number().nonnegative().nullable().optional()
+  ),
+  booked: z.boolean().default(false),
+  date_booked: z.string().nullable().optional(),
   comments: z.string().nullable().optional(),
   pdf_url: z.string().nullable().optional(),
 });
@@ -154,6 +163,7 @@ export interface SalesFilters {
   nextPaymentDateRange?: DateRange;
   isFrozen?: boolean;
   isRefund?: boolean;
+  isBooked?: boolean;
   sortBy?: SortField;
   sortOrder?: SortOrder;
 }

@@ -66,6 +66,7 @@ export function SaleFormDialog({
       next_payment_amount: null,
       is_fully_paid: false,
       status: "active",
+      summa_vozvrata: null,
       comments: null,
       pdf_url: null,
     },
@@ -91,6 +92,7 @@ export function SaleFormDialog({
         next_payment_amount: editingSale.next_payment_amount,
         is_fully_paid: editingSale.is_fully_paid,
         status: editingSale.status,
+        summa_vozvrata: editingSale.summa_vozvrata,
         comments: editingSale.comments || "",
         pdf_url: editingSale.pdf_url || "",
       });
@@ -113,6 +115,7 @@ export function SaleFormDialog({
         next_payment_amount: null,
         is_fully_paid: false,
         status: "active",
+        summa_vozvrata: null,
         comments: null,
         pdf_url: null,
       });
@@ -129,7 +132,7 @@ export function SaleFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl font-semibold">
             {editingSale ? "Редактирование абонемента" : "Новый абонемент"}
@@ -137,7 +140,7 @@ export function SaleFormDialog({
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 pr-4">
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -481,6 +484,49 @@ export function SaleFormDialog({
                         step="0.01"
                         placeholder="5000"
                         data-testid="input-next-payment-amount"
+                        {...field}
+                        value={field.value || ""}
+                        onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : null)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="is_refund"
+                render={({ field }) => (
+                  <FormItem className="flex items-center space-x-2 space-y-0">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        data-testid="checkbox-is-refund"
+                      />
+                    </FormControl>
+                    <FormLabel className="!mt-0 font-normal cursor-pointer">
+                      Возврат
+                    </FormLabel>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="summa_vozvrata"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Сумма возврата</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        data-testid="input-summa-vozvrata"
                         {...field}
                         value={field.value || ""}
                         onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : null)}

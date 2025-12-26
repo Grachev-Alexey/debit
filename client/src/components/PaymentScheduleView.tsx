@@ -16,7 +16,7 @@ import { PaymentScheduleEditor } from "./PaymentScheduleEditor";
 
 interface PaymentScheduleViewProps {
   sale: ClientSale;
-  onScheduleUpdate: (schedule: PaymentScheduleEntry[]) => void;
+  onScheduleUpdate: (schedule: PaymentScheduleEntry[], totalPayments?: number) => void;
 }
 
 export function PaymentScheduleView({ sale, onScheduleUpdate }: PaymentScheduleViewProps) {
@@ -90,8 +90,8 @@ export function PaymentScheduleView({ sale, onScheduleUpdate }: PaymentScheduleV
         {isEditing && (
           <PaymentScheduleEditor
             schedule={paymentSchedule}
-            onSave={(schedule) => {
-              onScheduleUpdate(schedule);
+            onSave={(schedule, totalPayments) => {
+              onScheduleUpdate(schedule, totalPayments);
               setIsEditing(false);
             }}
             onCancel={() => setIsEditing(false)}
@@ -105,8 +105,8 @@ export function PaymentScheduleView({ sale, onScheduleUpdate }: PaymentScheduleV
     return (
       <PaymentScheduleEditor
         schedule={paymentSchedule}
-        onSave={(schedule) => {
-          onScheduleUpdate(schedule);
+        onSave={(schedule, totalPayments) => {
+          onScheduleUpdate(schedule, totalPayments);
           setIsEditing(false);
         }}
         onCancel={() => setIsEditing(false)}
@@ -204,6 +204,21 @@ export function PaymentScheduleView({ sale, onScheduleUpdate }: PaymentScheduleV
 
   return (
     <div className="space-y-4">
+      <div className="rounded-lg border bg-muted/30 p-4 mb-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-xs text-muted-foreground mb-1">Клиент</p>
+            <p className="text-sm font-medium">{sale.client_name || "Имя не указано"}</p>
+            <p className="text-xs text-muted-foreground">{sale.client_phone}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground mb-1">Абонемент</p>
+            <p className="text-sm font-medium">{sale.subscription_title || "—"}</p>
+            <p className="text-xs text-muted-foreground">{formatCurrency(sale.total_cost)}</p>
+          </div>
+        </div>
+      </div>
+
       <div className="flex flex-wrap gap-2 justify-between items-center">
         <h3 className="text-lg font-semibold">График платежей</h3>
         <div className="flex gap-2">

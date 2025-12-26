@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 
 interface PaymentScheduleEditorProps {
   schedule: PaymentScheduleEntry[] | null;
-  onSave: (schedule: PaymentScheduleEntry[]) => void;
+  onSave: (schedule: PaymentScheduleEntry[], totalPayments: number) => void;
   onCancel: () => void;
 }
 
