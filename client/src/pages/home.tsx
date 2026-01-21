@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useDebouncedValue } from "@/hooks/use-debounce";
-import { Plus, Search, Pencil, ChevronLeft, ChevronRight, Calendar, MessageSquare, FileText, ExternalLink, X, Filter, ArrowUpDown, ArrowUp, ArrowDown, Trash2, MoreVertical, Snowflake, RotateCcw } from "lucide-react";
+import { Link } from "wouter";
+import { Plus, Search, Pencil, ChevronLeft, ChevronRight, Calendar, MessageSquare, FileText, ExternalLink, X, Filter, ArrowUpDown, ArrowUp, ArrowDown, Trash2, MoreVertical, Snowflake, RotateCcw, BarChart2 } from "lucide-react";
 import type { ClientSale, SalesFilters, InsertClientSale, PaymentScheduleEntry, SortField, SortOrder } from "@shared/schema";
 import { STUDIOS, getStudioName } from "@shared/constants";
 import { Button } from "@/components/ui/button";
@@ -301,10 +302,18 @@ export default function HomePage() {
           <h1 className="text-2xl font-bold tracking-tight" data-testid="text-page-title">
             Дебиторка
           </h1>
-          <Button onClick={handleAddClick} size="sm" data-testid="button-add-sale">
-            <Plus className="w-4 h-4 mr-2" />
-            Добавить абонемент
-          </Button>
+          <div className="flex items-center gap-2">
+            <Link href="/analytics">
+              <Button variant="outline" size="sm" data-testid="link-analytics">
+                <BarChart2 className="w-4 h-4 mr-2" />
+                Аналитика
+              </Button>
+            </Link>
+            <Button onClick={handleAddClick} size="sm" data-testid="button-add-sale">
+              <Plus className="w-4 h-4 mr-2" />
+              Добавить абонемент
+            </Button>
+          </div>
         </div>
       </header>
 
