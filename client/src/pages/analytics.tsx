@@ -1,26 +1,40 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LineChart, Line } from "recharts";
 import { type AnalyticsData } from "@shared/schema";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, TrendingUp, DollarSign, Building2 } from "lucide-react";
+import { ArrowLeft, TrendingUp, DollarSign, Building2, Calendar as CalendarIcon } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function AnalyticsPage() {
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+
   const { data: analytics, isLoading } = useQuery<AnalyticsData>({
-    queryKey: ["/api/analytics"],
+    queryKey: ["/api/analytics", { month: selectedMonth, year: selectedYear }],
+    queryFn: async () => {
+      const res = await fetch(`/api/analytics?month=${selectedMonth}&year=${selectedYear}`);
+      if (!res.ok) throw new Error("Failed to fetch analytics");
+      return res.json();
+    }
   });
 
   if (isLoading) {
     return (
       <div className="p-8 space-y-6">
         <Skeleton className="h-10 w-48" />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Skeleton className="h-32 w-full" />
           <Skeleton className="h-32 w-full" />
           <Skeleton className="h-32 w-full" />
         </div>
-        <Skeleton className="h-96 w-full" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Skeleton className="h-96 w-full" />
+          <Skeleton className="h-96 w-full" />
+        </div>
       </div>
     );
   }
@@ -34,9 +48,27 @@ export default function AnalyticsPage() {
     ? (analytics.totalActual / analytics.totalPlanned * 100).toFixed(1)
     : "0";
 
+  const months = [
+    { value: 1, label: "Январь" },
+    { value: 2, label: "Февраль" },
+    { value: 3, label: "Март" },
+    { value: 4, label: "Апрель" },
+    { value: 5, label: "Май" },
+    { value: 6, label: "Июнь" },
+    { value: 7, label: "Июль" },
+    { value: 8, label: "Август" },
+    { value: 9, label: "Сентябрь" },
+    { value: 10, label: "Октябрь" },
+    { value: 11, label: "Ноябрь" },
+    { value: 12, label: "Декабрь" },
+  ];
+
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
+
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8 bg-background min-h-screen">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <Link href="/">
             <Button variant="ghost" size="icon" data-testid="link-home">
@@ -45,12 +77,37 @@ export default function AnalyticsPage() {
           </Link>
           <h1 className="text-3xl font-bold tracking-tight">Аналитика продаж</h1>
         </div>
+        
+        <div className="flex items-center gap-3">
+          <Select value={selectedMonth.toString()} onValueChange={(val) => setSelectedMonth(parseInt(val))}>
+            <SelectTrigger className="w-[150px]">
+              <CalendarIcon className="h-4 w-4 mr-2" />
+              <SelectValue placeholder="Месяц" />
+            </SelectTrigger>
+            <SelectContent>
+              {months.map((m) => (
+                <SelectItem key={m.value} value={m.value.toString()}>{m.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={selectedYear.toString()} onValueChange={(val) => setSelectedYear(parseInt(val))}>
+            <SelectTrigger className="w-[120px]">
+              <SelectValue placeholder="Год" />
+            </SelectTrigger>
+            <SelectContent>
+              {years.map((y) => (
+                <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="hover-elevate">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Планируемый доход (мес)</CardTitle>
+            <CardTitle className="text-sm font-medium">Планируемый доход ({months.find(m => m.value === selectedMonth)?.label})</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -59,7 +116,7 @@ export default function AnalyticsPage() {
         </Card>
         <Card className="hover-elevate">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Фактический доход (мес)</CardTitle>
+            <CardTitle className="text-sm font-medium">Фактический доход ({months.find(m => m.value === selectedMonth)?.label})</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -87,14 +144,24 @@ export default function AnalyticsPage() {
           </CardHeader>
           <CardContent className="h-[400px]">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={analytics.monthlyStats}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis tickFormatter={(val) => `${val/1000}k`} />
-                <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                <Legend />
-                <Line type="monotone" dataKey="planned" name="План" stroke="hsl(var(--primary))" strokeWidth={2} />
-                <Line type="monotone" dataKey="actual" name="Факт" stroke="hsl(var(--accent))" strokeWidth={2} />
+              <LineChart data={analytics.monthlyStats} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis 
+                  dataKey="month" 
+                  tick={{ fontSize: 12 }} 
+                  dy={10}
+                />
+                <YAxis 
+                  tickFormatter={(val) => `${(val/1000).toFixed(0)}k`} 
+                  tick={{ fontSize: 12 }}
+                />
+                <Tooltip 
+                  formatter={(value: number) => formatCurrency(value)}
+                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                />
+                <Legend verticalAlign="top" height={36}/>
+                <Line type="monotone" dataKey="planned" name="План" stroke="hsl(var(--primary))" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                <Line type="monotone" dataKey="actual" name="Факт" stroke="hsl(var(--accent))" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
@@ -106,12 +173,25 @@ export default function AnalyticsPage() {
           </CardHeader>
           <CardContent className="h-[400px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={analytics.byCompany}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="companyName" />
-                <YAxis tickFormatter={(val) => `${val/1000}k`} />
-                <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                <Legend />
+              <BarChart data={analytics.byCompany} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis 
+                  dataKey="companyName" 
+                  angle={-45} 
+                  textAnchor="end" 
+                  interval={0} 
+                  tick={{ fontSize: 11 }}
+                  height={80}
+                />
+                <YAxis 
+                  tickFormatter={(val) => `${(val/1000).toFixed(0)}k`}
+                  tick={{ fontSize: 12 }}
+                />
+                <Tooltip 
+                  formatter={(value: number) => formatCurrency(value)}
+                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                />
+                <Legend verticalAlign="top" height={36}/>
                 <Bar dataKey="planned" name="План" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="actual" name="Факт" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} />
               </BarChart>
@@ -122,13 +202,13 @@ export default function AnalyticsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Детализация по филиалам</CardTitle>
+          <CardTitle>Детализация по филиалам ({months.find(m => m.value === selectedMonth)?.label})</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="relative w-full overflow-auto">
             <table className="w-full caption-bottom text-sm">
               <thead className="[&_tr]:border-b">
-                <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                <tr className="border-b transition-colors hover:bg-muted/50">
                   <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Филиал</th>
                   <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground">План</th>
                   <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground">Факт</th>

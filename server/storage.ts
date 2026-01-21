@@ -1,4 +1,5 @@
 import { type ClientSale, type InsertClientSale, type UpdateClientSale, type SalesFilters, type AnalyticsData } from "@shared/schema";
+import { STUDIOS } from "@shared/constants";
 import { pool } from "./database";
 import type { RowDataPacket, ResultSetHeader } from 'mysql2';
 
@@ -432,7 +433,12 @@ export class MySQLStorage implements IStorage {
 
               const cId = sale.yclients_company_id || 0;
               if (!companyStats[cId]) {
-                companyStats[cId] = { name: `Филиал ${cId || 'Неизвестно'}`, planned: 0, actual: 0 };
+                const studio = STUDIOS.find(s => s.id === cId);
+                companyStats[cId] = { 
+                  name: studio ? studio.name : `Филиал ${cId || 'Неизвестно'}`, 
+                  planned: 0, 
+                  actual: 0 
+                };
               }
               companyStats[cId].planned += plannedAmount;
               companyStats[cId].actual += actualAmount;
