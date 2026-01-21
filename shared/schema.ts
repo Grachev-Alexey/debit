@@ -176,10 +176,14 @@ export interface AnalyticsData {
     companyName: string;
     planned: number;
     actual: number;
+    plannedPeople: number;
+    actualPeople: number;
   }[];
   monthlyStats: {
     month: string;
     planned: number;
     actual: number;
+    plannedPeople: number;
+    actualPeople: number;
   }[];
 }

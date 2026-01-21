@@ -405,43 +405,80 @@ export class MySQLStorage implements IStorage {
 
     let totalPlanned = 0;
     let totalActual = 0;
-    const companyStats: Record<number, { name: string; planned: number; actual: number }> = {};
-    const monthlyStats: Record<string, { planned: number; actual: number }> = {};
+    const companyStats: Record<number, { name: string; planned: number; actual: number; plannedPeople: Set<number>; actualPeople: Set<number> }> = {};
+    const monthlyStats: Record<string, { planned: number; actual: number; plannedPeople: Set<number>; actualPeople: Set<number> }> = {};
 
     sales.forEach(sale => {
+      // Пропускаем продажи с возвратом для основного дохода, если нужно
+      // Но клиент просил "учитываются ли возвраты", обычно в аналитике их вычитают или помечают
+      // Для простоты пока считаем все платежи, но можем добавить фильтр
+
       if (sale.payment_schedule) {
         sale.payment_schedule.forEach(p => {
-          const pDate = this.parseRussianDate(p.planned_date);
-          if (pDate) {
-            const pMonth = pDate.getMonth() + 1;
-            const pYear = pDate.getFullYear();
+          const plannedDate = this.parseRussianDate(p.planned_date);
+          const actualDate = p.actual_date ? this.parseRussianDate(p.actual_date) : null;
+
+          // ПЛАНОВЫЕ показатели считаем по ПЛАНОВОЙ дате
+          if (plannedDate) {
+            const pMonth = plannedDate.getMonth() + 1;
+            const pYear = plannedDate.getFullYear();
             const monthKey = `${pYear}-${String(pMonth).padStart(2, '0')}`;
 
             if (!monthlyStats[monthKey]) {
-              monthlyStats[monthKey] = { planned: 0, actual: 0 };
+              monthlyStats[monthKey] = { planned: 0, actual: 0, plannedPeople: new Set(), actualPeople: new Set() };
             }
 
             const plannedAmount = p.planned_amount || 0;
-            const actualAmount = p.actual_amount || 0;
-
             monthlyStats[monthKey].planned += plannedAmount;
-            monthlyStats[monthKey].actual += actualAmount;
+            monthlyStats[monthKey].plannedPeople.add(sale.id);
 
             if (pMonth === targetMonth && pYear === targetYear) {
               totalPlanned += plannedAmount;
-              totalActual += actualAmount;
-
               const cId = sale.yclients_company_id || 0;
               if (!companyStats[cId]) {
                 const studio = STUDIOS.find(s => s.id === cId);
                 companyStats[cId] = { 
                   name: studio ? studio.name : `Филиал ${cId || 'Неизвестно'}`, 
                   planned: 0, 
-                  actual: 0 
+                  actual: 0,
+                  plannedPeople: new Set(),
+                  actualPeople: new Set()
                 };
               }
               companyStats[cId].planned += plannedAmount;
+              companyStats[cId].plannedPeople.add(sale.id);
+            }
+          }
+
+          // ФАКТИЧЕСКИЕ показатели считаем по ФАКТИЧЕСКОЙ дате
+          if (actualDate && p.status === 'paid') {
+            const aMonth = actualDate.getMonth() + 1;
+            const aYear = actualDate.getFullYear();
+            const monthKey = `${aYear}-${String(aMonth).padStart(2, '0')}`;
+
+            if (!monthlyStats[monthKey]) {
+              monthlyStats[monthKey] = { planned: 0, actual: 0, plannedPeople: new Set(), actualPeople: new Set() };
+            }
+
+            const actualAmount = p.actual_amount || 0;
+            monthlyStats[monthKey].actual += actualAmount;
+            monthlyStats[monthKey].actualPeople.add(sale.id);
+
+            if (aMonth === targetMonth && aYear === targetYear) {
+              totalActual += actualAmount;
+              const cId = sale.yclients_company_id || 0;
+              if (!companyStats[cId]) {
+                const studio = STUDIOS.find(s => s.id === cId);
+                companyStats[cId] = { 
+                  name: studio ? studio.name : `Филиал ${cId || 'Неизвестно'}`, 
+                  planned: 0, 
+                  actual: 0,
+                  plannedPeople: new Set(),
+                  actualPeople: new Set()
+                };
+              }
               companyStats[cId].actual += actualAmount;
+              companyStats[cId].actualPeople.add(sale.id);
             }
           }
         });
@@ -455,14 +492,18 @@ export class MySQLStorage implements IStorage {
         companyId: Number(id),
         companyName: stats.name,
         planned: stats.planned,
-        actual: stats.actual
+        actual: stats.actual,
+        plannedPeople: stats.plannedPeople.size,
+        actualPeople: stats.actualPeople.size
       })),
       monthlyStats: Object.entries(monthlyStats)
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([month, stats]) => ({
           month,
           planned: stats.planned,
-          actual: stats.actual
+          actual: stats.actual,
+          plannedPeople: stats.plannedPeople.size,
+          actualPeople: stats.actualPeople.size
         }))
     };
   }
