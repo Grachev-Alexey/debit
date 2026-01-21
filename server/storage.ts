@@ -1,4 +1,4 @@
-import { type ClientSale, type InsertClientSale, type UpdateClientSale, type SalesFilters } from "@shared/schema";
+import { type ClientSale, type InsertClientSale, type UpdateClientSale, type SalesFilters, type AnalyticsData } from "@shared/schema";
 import { pool } from "./database";
 import type { RowDataPacket, ResultSetHeader } from 'mysql2';
 
@@ -9,6 +9,7 @@ export interface IStorage {
   createSale(sale: InsertClientSale): Promise<ClientSale>;
   updateSale(id: number, sale: UpdateClientSale): Promise<ClientSale | undefined>;
   deleteSale(id: number): Promise<boolean>;
+  getAnalytics(month?: number, year?: number): Promise<AnalyticsData>;
 }
 
 export class MySQLStorage implements IStorage {
@@ -393,6 +394,71 @@ export class MySQLStorage implements IStorage {
       console.error('Ошибка при удалении продажи:', error);
       throw new Error('Не удалось удалить продажу');
     }
+  }
+
+  async getAnalytics(month?: number, year?: number): Promise<AnalyticsData> {
+    const sales = await this.getSales();
+    const now = new Date();
+    const targetMonth = month !== undefined ? month : now.getMonth() + 1;
+    const targetYear = year !== undefined ? year : now.getFullYear();
+
+    let totalPlanned = 0;
+    let totalActual = 0;
+    const companyStats: Record<number, { name: string; planned: number; actual: number }> = {};
+    const monthlyStats: Record<string, { planned: number; actual: number }> = {};
+
+    sales.forEach(sale => {
+      if (sale.payment_schedule) {
+        sale.payment_schedule.forEach(p => {
+          const pDate = this.parseRussianDate(p.planned_date);
+          if (pDate) {
+            const pMonth = pDate.getMonth() + 1;
+            const pYear = pDate.getFullYear();
+            const monthKey = `${pYear}-${String(pMonth).padStart(2, '0')}`;
+
+            if (!monthlyStats[monthKey]) {
+              monthlyStats[monthKey] = { planned: 0, actual: 0 };
+            }
+
+            const plannedAmount = p.planned_amount || 0;
+            const actualAmount = p.actual_amount || 0;
+
+            monthlyStats[monthKey].planned += plannedAmount;
+            monthlyStats[monthKey].actual += actualAmount;
+
+            if (pMonth === targetMonth && pYear === targetYear) {
+              totalPlanned += plannedAmount;
+              totalActual += actualAmount;
+
+              const cId = sale.yclients_company_id || 0;
+              if (!companyStats[cId]) {
+                companyStats[cId] = { name: `Филиал ${cId || 'Неизвестно'}`, planned: 0, actual: 0 };
+              }
+              companyStats[cId].planned += plannedAmount;
+              companyStats[cId].actual += actualAmount;
+            }
+          }
+        });
+      }
+    });
+
+    return {
+      totalPlanned,
+      totalActual,
+      byCompany: Object.entries(companyStats).map(([id, stats]) => ({
+        companyId: Number(id),
+        companyName: stats.name,
+        planned: stats.planned,
+        actual: stats.actual
+      })),
+      monthlyStats: Object.entries(monthlyStats)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([month, stats]) => ({
+          month,
+          planned: stats.planned,
+          actual: stats.actual
+        }))
+    };
   }
 
   // Вспомогательная функция для преобразования строки БД в объект ClientSale

@@ -167,3 +167,19 @@ export interface SalesFilters {
   sortBy?: SortField;
   sortOrder?: SortOrder;
 }
+
+export interface AnalyticsData {
+  totalPlanned: number;
+  totalActual: number;
+  byCompany: {
+    companyId: number;
+    companyName: string;
+    planned: number;
+    actual: number;
+  }[];
+  monthlyStats: {
+    month: string;
+    planned: number;
+    actual: number;
+  }[];
+}

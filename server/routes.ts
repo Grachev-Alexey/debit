@@ -167,6 +167,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/analytics - Получить аналитические данные
+  app.get("/api/analytics", async (req, res) => {
+    try {
+      const month = req.query.month ? parseInt(req.query.month as string) : undefined;
+      const year = req.query.year ? parseInt(req.query.year as string) : undefined;
+      
+      const analytics = await storage.getAnalytics(month, year);
+      res.json(analytics);
+    } catch (error) {
+      console.error("Ошибка при получении аналитики:", error);
+      res.status(500).json({ 
+        error: "Не удалось получить аналитику",
+        message: error instanceof Error ? error.message : "Неизвестная ошибка"
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
